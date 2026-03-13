@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Fichas Tecnicas</title>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder@2.4.0/dist/Control.Geocoder.css" />
+    <!-- Styles -->
+    <link rel="stylesheet" href="styles.css">
+    <!-- jsPDF and AutoTable -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <!-- SheetJS for Excel -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+
+<body>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- ============================================
+       LOADING SCREEN
+       ============================================ -->
+    <div id="loading-view" class="view loading-view-fullscreen">
+        <div class="loading-content">
+            <div id="welcome-animation-container" class="welcome-animation"></div>
+        </div>
+    </div>
+
+    <!-- ============================================
+       LOGIN VIEW
+       ============================================ -->
+    <div id="login-view" class="view active">
+        <main class="login-main-container">
+            <!-- Left Section (Animation) -->
+            <section class="login-left-section">
+                <div class="login-decoration login-decoration-1"></div>
+                <div class="login-decoration login-decoration-2"></div>
+                <div class="login-animation-wrapper" id="lottie-container">
+                    <div class="login-animation-text">
+                        <h2>Gestión de Fichas Técnicas</h2>
+                        <p>Sistema diseñado para la automatizacion y previsualizacion de status de fichas tenicas</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Right Section (Form) -->
+            <section class="login-right-section">
+                <div class="login-form-wrapper glass-card"
+                    style="height: auto; padding: 2rem; width: 100%; max-width: 400px; min-height: 500px;">
+                    <div class="login-mobile-logo">
+                        <img src="assets/SEMOVINFRA.jpg" alt="SEMOVINFRA">
+                    </div>
+                    <header class="login-form-header">
+                        <h1>Iniciar Sesión</h1>
+                        <p>Ingresa tus credenciales</p>
+                    </header>
+                    <form id="login-form" class="login-form">
+                        <div class="form-group">
+                            <label for="login-username">Usuario</label>
+                            <input type="text" id="login-username" placeholder="Usuario" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="login-password">Contraseña</label>
+                            <input type="password" id="login-password" placeholder="••••••••" required>
+                        </div>
+                        <div class="login-error" id="login-error">Usuario o contraseña incorrectos</div>
+                        <button type="submit" class="btn btn-primary btn-block" id="login-btn">Iniciar Sesión</button>
+                    </form>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- ============================================
+       ADMIN DASHBOARD
+       ============================================ -->
+    <div id="admin-view" class="view">
+        <header class="dashboard-header">
+            <span class="brand" id="brand-welcome-admin">Bienvenido</span>
+            <div class="header-actions">
+                <div style="position: relative; display: inline-block;">
+                    <button class="btn btn-secondary btn-sm" id="btn-messages-admin" style="display: none;">
+                        <i class="fas fa-comments"></i> Mensajes
+                    </button>
+                    <span class="badge-comments" id="badge-comments" style="display: none;">0</span>
+                </div>
+                <button class="btn btn-secondary btn-sm" id="btn-report-general"><i class="fas fa-chart-bar"></i>
+                    Reporte</button>
+                <div class="user-badge">
+                    <span id="admin-user-name">Admin</span>
+                    <span class="role-tag">ADMIN</span>
+                </div>
+                <button class="btn-logout" id="btn-logout-admin">Salir</button>
+            </div>
+        </header>
+        <div class="dashboard-content">
+            <div class="welcome-section">
+                <h2>Panel de Administración</h2>
+                <p>Gestiona fichas y usuarios</p>
+            </div>
+
+            <!-- Action Cards -->
+            <div class="action-cards">
+                <div class="action-card glass-card" id="action-create-user"
+                    style="height: 160px; width: 100%; max-width: 300px;">
+                    <span class="icon"><i class="fas fa-user-plus"></i></span>
+                    <h3>Crear Usuario</h3>
+                    <p>Registrar administradores, revisores o visores</p>
+                </div>
+                <div class="action-card glass-card" id="action-manage-users"
+                    style="height: 160px; width: 100%; max-width: 300px;">
+                    <span class="icon"><i class="fas fa-users-cog"></i></span>
+                    <h3>Gestionar Usuarios</h3>
+                    <p>Ver y eliminar usuarios</p>
+                </div>
+                <div class="action-card glass-card" id="action-create-ficha"
+                    style="height: 160px; width: 100%; max-width: 300px;">
+                    <span class="icon"><i class="fas fa-file-alt"></i></span>
+                    <h3>Nueva Ficha</h3>
+                    <p>Crear ficha técnica</p>
+                </div>
+            </div>
+
+            <!-- Search Box -->
+            <div class="search-container" style="margin-bottom: 20px; display: flex; gap: 10px; align-items: center;">
+                <select id="search-type-admin" style="padding: 8px; border-radius: 6px; border: 1px solid #ddd;">
+                    <option value="folio">Folio</option>
+                    <option value="sifais">SIFAIS</option>
+                    <option value="date">Fecha</option>
+                </select>
+                <input type="text" id="search-admin" placeholder="Buscar..." style="max-width: 300px; padding: 8px;">
+                <button class="btn btn-primary" onclick="searchFichas('admin')"><i class="fas fa-search"></i>
+                    Buscar</button>
+                <button class="btn btn-secondary" onclick="clearSearch('admin')">Limpiar</button>
+            </div>
+
+            <!-- Fichas Grid with Export Buttons -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3 class="section-title" style="margin: 0;">Fichas Técnicas</h3>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-secondary" id="btn-export-pdf-admin">
+                        <i class="fas fa-file-pdf"></i> Exportar a PDF
+                    </button>
+                    <button class="btn btn-secondary" id="btn-export-excel-admin">
+                        <i class="fas fa-file-excel"></i> Exportar a Excel
+                    </button>
+                </div>
+            </div>
+            <div class="fichas-container">
+                <div class="fichas-grid" id="admin-fichas-grid">
+                    <!-- Cards injected by JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================
+       REVISOR DASHBOARD
+       ============================================ -->
+    <div id="revisor-view" class="view">
+        <header class="dashboard-header">
+            <span class="brand" id="brand-welcome-revisor">Bienvenido</span>
+            <div class="header-actions">
+                <button class="btn btn-secondary btn-sm" id="btn-report-general-revisor"><i
+                        class="fas fa-chart-bar"></i> Reporte</button>
+                <div class="user-badge">
+                    <span id="revisor-user-name">Revisor</span>
+                    <span class="role-tag">REVISOR</span>
+                </div>
+                <button class="btn-logout" id="btn-logout-revisor">Salir</button>
+            </div>
+        </header>
+        <div class="dashboard-content">
+            <div class="welcome-section">
+                <h2>Panel de Revisión</h2>
+                <p>Revisa y comenta fichas</p>
+            </div>
+            <!-- Search Box -->
+            <div class="search-container" style="margin-bottom: 20px; display: flex; gap: 10px; align-items: center;">
+                <select id="search-type-revisor" style="padding: 8px; border-radius: 6px; border: 1px solid #ddd;">
+                    <option value="folio">Folio</option>
+                    <option value="sifais">SIFAIS</option>
+                    <option value="date">Fecha</option>
+                </select>
+                <input type="text" id="search-revisor" placeholder="Buscar..." style="max-width: 300px; padding: 8px;">
+                <button class="btn btn-primary" onclick="searchFichas('revisor')"><i class="fas fa-search"></i>
+                    Buscar</button>
+                <button class="btn btn-secondary" onclick="clearSearch('revisor')">Limpiar</button>
+            </div>
+
+            <!-- Fichas Grid with Export Buttons -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3 class="section-title" style="margin: 0;">Fichas Técnicas</h3>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-secondary" id="btn-export-pdf-revisor">
+                        <i class="fas fa-file-pdf"></i> Exportar a PDF
+                    </button>
+                    <button class="btn btn-secondary" id="btn-export-excel-revisor">
+                        <i class="fas fa-file-excel"></i> Exportar a Excel
+                    </button>
+                </div>
+            </div>
+            <div class="fichas-container">
+                <div class="fichas-grid" id="revisor-fichas-grid">
+                    <!-- Cards injected by JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================
+       VISOR DASHBOARD
+       ============================================ -->
+    <div id="visor-view" class="view">
+        <header class="dashboard-header">
+            <span class="brand" id="brand-welcome-visor">Bienvenido</span>
+            <div class="header-actions">
+                <button class="btn btn-secondary btn-sm" id="btn-report-general-visor"><i class="fas fa-chart-bar"></i>
+                    Reporte</button>
+                <div class="user-badge">
+                    <span id="visor-user-name">Visor</span>
+                    <span class="role-tag">VISOR</span>
+                </div>
+                <button class="btn-logout" id="btn-logout-visor">Salir</button>
+            </div>
+        </header>
+        <div class="dashboard-content">
+            <div class="welcome-section">
+                <h2>Panel de Visualización</h2>
+                <p>Consulta reportes y fichas</p>
+            </div>
+            <!-- Search Box -->
+            <div class="search-container" style="margin-bottom: 20px; display: flex; gap: 10px; align-items: center;">
+                <select id="search-type-visor" style="padding: 8px; border-radius: 6px; border: 1px solid #ddd;">
+                    <option value="folio">Folio</option>
+                    <option value="sifais">SIFAIS</option>
+                    <option value="date">Fecha</option>
+                </select>
+                <input type="text" id="search-visor" placeholder="Buscar..." style="max-width: 300px; padding: 8px;">
+                <button class="btn btn-primary" onclick="searchFichas('visor')"><i class="fas fa-search"></i>
+                    Buscar</button>
+                <button class="btn btn-secondary" onclick="clearSearch('visor')">Limpiar</button>
+            </div>
+
+            <!-- Fichas Grid with Export Buttons -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3 class="section-title" style="margin: 0;">Fichas Técnicas</h3>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-secondary" id="btn-export-pdf-visor">
+                        <i class="fas fa-file-pdf"></i> Exportar a PDF
+                    </button>
+                    <button class="btn btn-secondary" id="btn-export-excel-visor">
+                        <i class="fas fa-file-excel"></i> Exportar a Excel
+                    </button>
+                </div>
+            </div>
+            <div class="fichas-container">
+                <div class="fichas-grid" id="visor-fichas-grid">
+                    <!-- Cards injected by JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================
+       MODAL: CREAR USUARIO
+       ============================================ -->
+    <div class="modal-overlay" id="modal-create-user">
+        <div class="modal glass-card" style="width: 90%; max-width: 500px; height: auto;">
+            <div class="modal-header">
+                <h2><i class="fas fa-user-plus"></i> Crear Nuevo Usuario</h2>
+                <button class="modal-close" data-close="modal-create-user">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="form-create-user">
+                    <div class="form-group">
+                        <label>Nombre Completo</label>
+                        <input type="text" id="new-user-nombre" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Usuario</label>
+                        <input type="text" id="new-user-username" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Contraseña</label>
+                        <input type="password" id="new-user-password" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Rol</label>
+                        <select id="new-user-role" required>
+                            <option value="">Seleccionar...</option>
+                            <option value="admin">Administrador</option>
+                            <option value="revisor">Revisor</option>
+                            <option value="visor">Visor</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-close="modal-create-user">Cancelar</button>
+                <button class="btn btn-primary" id="btn-save-user">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================
+       MODAL: GESTIONAR USUARIOS
+       ============================================ -->
+    <div class="modal-overlay" id="modal-manage-users">
+        <div class="modal glass-card" style="width: 90%; max-width: 700px; height: auto; max-height: 80vh;">
+            <div class="modal-header">
+                <h2><i class="fas fa-users-cog"></i> Gestionar Usuarios</h2>
+                <button class="modal-close" data-close="modal-manage-users">&times;</button>
+            </div>
+            <div class="modal-body" style="overflow-y: auto; max-height: 60vh;">
+                <div id="users-list">
+                    <!-- Usuarios cargados dinámicamente -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-close="modal-manage-users">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================
+       MODAL: FICHA TECNICA (Multi-step)
+       ============================================ -->
+    <div class="modal-overlay" id="modal-ficha">
+        <div class="modal glass-card modal-lg" style="width: 95%; max-width: 900px; height: 90vh;">
+            <div class="modal-header">
+                <h2 id="modal-ficha-title"><i class="fas fa-file-alt"></i> Nueva Ficha Técnica</h2>
+                <button class="modal-close" data-close="modal-ficha">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Step Progress -->
+                <div class="step-progress">
+                    <div class="step-dot active" data-step="1"></div>
+                    <div class="step-dot" data-step="2"></div>
+                    <div class="step-dot" data-step="3"></div>
+                </div>
+
+                <!-- Step 1: Basic Info -->
+                <div class="step-content active" data-step="1">
+                    <h3>Información Básica</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>No. Folio</label>
+                            <input type="text" id="ficha-folio" placeholder="F-2026-001">
+                        </div>
+                        <div class="form-group">
+                            <label>No. SIFAIS</label>
+                            <input type="text" id="ficha-sifais" placeholder="SIFAIS-001">
+                        </div>
+                        <div class="form-group">
+                            <label>Tipo</label>
+                            <input type="text" id="ficha-tipo" placeholder="Ej: Puente,Reh,Edificio.">
+                        </div>
+                        <div class="form-group">
+                            <label>Tiempo Ejecución</label>
+                            <input type="text" id="ficha-tiempo-ejecucion" placeholder="Ej: 3 meses">
+                        </div>
+                        <div class="form-group full-width">
+                            <label>Obra/Proyecto</label>
+                            <textarea id="ficha-concepto" rows="2"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>M²</label>
+                            <input type="number" id="ficha-m2" step="0.01" placeholder="Ej: 120">
+                        </div>
+                        <div class="form-group">
+                            <label>Longitud</label>
+                            <input type="text" id="ficha-longitud" placeholder="Ej: 150 m">
+                        </div>
+                        <div class="form-group">
+                            <label>Costo Paramétrico</label>
+                            <input type="text" id="ficha-costo-parametrico" placeholder="Ej: $500,000">
+                        </div>
+                        <div class="form-group">
+                            <label>Origen de Recursos</label>
+                            <input type="text" id="ficha-origen-recursos" placeholder="Ej: Estatal, Federal, etc.">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 2: Map / Location -->
+                <div class="step-content" data-step="2">
+                    <h3><i class="fas fa-map-marker-alt"></i> Ubicación en Mapa</h3>
+                    <p class="info-text">Haz clic en el mapa para seleccionar la ubicación.</p>
+                    <div class="map-container">
+                        <div id="ficha-map"></div>
+                    </div>
+                    <div class="coord-display" id="coord-display">Coordenadas: Sin seleccionar</div>
+                    <div class="form-group" style="margin-top: 10px;">
+                        <label>Dirección</label>
+                        <input type="text" id="ficha-calle" placeholder="Auto-completado">
+                    </div>
+                </div>
+
+                <!-- Step 3: Infrastructure & Details -->
+                <div class="step-content" data-step="3">
+                    <h3><i class="fas fa-info-circle"></i> Infraestructura y Detalles</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Topografía</label>
+                            <input type="text" id="ficha-topografia" placeholder="Ej: Si, No">
+                        </div>
+                        <div class="form-group">
+                            <label>Mecánica </label>
+                            <input type="text" id="ficha-mecanica-text" placeholder="Ej: Si, No">
+                        </div>
+                        <div class="form-group">
+                            <label>Gas (%)</label>
+                            <input type="number" id="ficha-gas" min="0" max="100" placeholder="0-100">
+                        </div>
+                        <div class="form-group">
+                            <label>Agua (%)</label>
+                            <input type="number" id="ficha-agua" min="0" max="100" placeholder="0-100">
+                        </div>
+                        <div class="form-group">
+                            <label>Drenaje (%)</label>
+                            <input type="number" id="ficha-drenaje" min="0" max="100" placeholder="0-100">
+                        </div>
+                        <div class="form-group">
+                            <label>Alumbrado</label>
+                            <input type="text" id="ficha-alumbrado-text" placeholder="Ej: Si, No">
+                        </div>
+                        <div class="form-group">
+                            <label>Vía Ciclista</label>
+                            <input type="text" id="ficha-via-ciclista-text" placeholder="Ej: Si,No">
+                        </div>
+                        <div class="form-group">
+                            <label>ZAP</label>
+                            <input type="text" id="ficha-zap">
+                        </div>
+                        <div class="form-group">
+                            <label>Expediente (%)</label>
+                            <input type="number" id="ficha-expediente" min="0" max="100" placeholder="0-100">
+                        </div>
+                        <div class="form-group full-width">
+                            <label>observaciones</label>
+                            <textarea id="ficha-definicion" rows="2"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Status Bar Visual -->
+                    <div style="margin-top: 20px; text-align: center;">
+                        <div class="status-bar-label">
+                            <span>Avance del Expediente</span>
+                            <span id="ficha-status-percent">0%</span>
+                        </div>
+                        <div class="status-bar status-0" id="ficha-status-bar">
+                            <div class="fill"></div>
+                        </div>
+                    </div>
+                </div>
+
+
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="btn-ficha-prev" style="display:none;">Anterior</button>
+                <button class="btn btn-primary" id="btn-ficha-next">Siguiente</button>
+                <button class="btn btn-success" id="btn-ficha-save" style="display:none;"><i class="fas fa-save"></i>
+                    Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================
+       MODAL: DETALLE FICHA
+       ============================================ -->
+    <div class="modal-overlay" id="modal-ficha-detail">
+        <div class="modal glass-card modal-lg" style="width: 95%; max-width: 800px; height: auto; max-height: 90vh;">
+            <div class="modal-header">
+                <h2 id="detail-title">Ficha Técnica</h2>
+                <button class="modal-close" data-close="modal-ficha-detail">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="ficha-detail-grid" id="ficha-detail-content">
+                    <!-- Content injected by JS -->
+                </div>
+                <div class="map-container" style="margin-top: 16px; height: 250px;">
+                    <div id="detail-map"></div>
+                </div>
+
+                <!-- Comments Section -->
+                <div class="comments-section">
+                    <h3><i class="fas fa-comments"></i> Comentarios</h3>
+                    <div id="comments-list"></div>
+
+                    <!-- Comment Form (Revisor Only) -->
+                    <div class="comment-form" id="comment-form" style="display:none;">
+                        <textarea id="comment-text" placeholder="Escribe tu comentario..." rows="3"></textarea>
+                        <div class="comment-type-selector">
+                            <button type="button" class="comment-type-btn" data-type="aprobacion"><i
+                                    class="fas fa-check-circle"></i> Aprobación</button>
+                            <button type="button" class="comment-type-btn" data-type="revision"><i
+                                    class="fas fa-search"></i> Revisión</button>
+                            <button type="button" class="comment-type-btn" data-type="datos_incorrectos"><i
+                                    class="fas fa-times-circle"></i> Datos Incorrectos</button>
+                        </div>
+                        <div style="text-align: right; margin-top: 10px;">
+                            <button class="btn btn-primary btn-sm" id="btn-submit-comment">Enviar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" id="detail-footer-actions">
+                <!-- Actions injected by JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================
+       MODAL: REPORTE GENERAL
+       ============================================ -->
+    <div class="modal-overlay" id="modal-report">
+        <!-- Controles fuera de la plantilla -->
+        <div style="position: absolute; top: 10px; right: 10px; z-index: 20;">
+            <button class="btn btn-secondary" data-close="modal-report"
+                style="background: rgba(0,0,0,0.5); border: none; color: white; font-size: 20px; width: 30px; height: 30px; padding: 0;">&times;</button>
+        </div>
+        <div
+            style="position: absolute; top: 10px; left: 10px; z-index: 20; display: flex; align-items: center; gap: 10px;">
+            <h3 style="color: white; text-shadow: 2px 2px 4px black; margin: 0; font-size: 18px; white-space: nowrap;">
+                Todas las Fichas</h3>
+            <button class="btn btn-sm btn-secondary" id="btn-print-report"
+                style="background: rgba(0,0,0,0.5); border: none; color: white; padding: 5px 10px; font-size: 14px;">
+                <i class="fas fa-print"></i> Imprimir
+            </button>
+            <button class="btn btn-sm btn-secondary" id="btn-export-powerpoint"
+                style="background: rgba(0,0,0,0.5); border: none; color: white; padding: 5px 10px; font-size: 14px;">
+                <i class="fas fa-file-powerpoint"></i> Exportar PowerPoint
+            </button>
+        </div>
+
+        <!-- Plantilla y tabla -->
+        <div class="modal"
+            style="width: 1280px; height: 720px; max-width: 100%; max-height: 100%; background: url('assets/Plantilla.png') no-repeat center center; background-size: cover; border: none; margin: auto; position: absolute; top: 50px; bottom: 0; left: 0; right: 0;">
+            <div
+                style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px;">
+                <!-- Título centrado arriba de la tabla -->
+                <div style="text-align: center; margin-bottom: 15px;">
+                    <h3
+                        style="color: white; text-shadow: 2px 2px 4px black; margin: 0; font-size: 22px; font-weight: bold;">
+                        REPORTE GENERAL
+                    </h3>
+                </div>
+                <!-- Tabla -->
+                <div
+                    style="transform: scale(0.8); transform-origin: center; width: 125%; height: 125%; display: flex; align-items: center; justify-content: center;">
+                    <table class="report-table" id="report-table" style="margin: 0 auto; width: 100%;">
+                        <thead>
+                            <tr>
+                                <th>Tipo</th>
+                                <th>Expediente</th>
+                                <th>Ubicación</th>
+                                <th>Topografía</th>
+                                <th>Mecánica</th>
+                                <th>Vía Ciclista</th>
+                            </tr>
+                        </thead>
+                        <tbody id="report-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    </div>
+    </div>
+
+    <!-- ============================================
+       MODAL: TUTORIAL
+       ============================================ -->
+    <div class="modal-overlay tutorial-overlay" id="modal-tutorial-1">
+        <div class="modal glass-card modal-tutorial" style="width: 90%; max-width: 700px;">
+            <div class="modal-body">
+                <div class="tutorial-content">
+                    <div class="tutorial-text">
+                        <h2><i class="fas fa-rocket"></i> Bienvenido</h2>
+                        <p>Te explicamos cómo usar el sistema.</p>
+                        <p><strong>Paso 1: Panel de Administración</strong></p>
+                        <p>Aquí podrás crear usuarios y nuevas fichas técnicas.</p>
+                    </div>
+                    <div class="tutorial-animation" id="robot-animation-1"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="nextTutorialStep(2)">Siguiente</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay tutorial-overlay" id="modal-tutorial-2">
+        <div class="modal glass-card modal-tutorial" style="width: 90%; max-width: 700px;">
+            <div class="modal-body">
+                <div class="tutorial-content">
+                    <div class="tutorial-text">
+                        <h2><i class="fas fa-file-alt"></i> Creación de Fichas</h2>
+                        <p>Las fichas se crean en 3 pasos sencillos:</p>
+                        <ul>
+                            <li><i class="fas fa-check"></i> Info Básica</li>
+                            <li><i class="fas fa-check"></i> Ubicación en Mapa</li>
+                            <li><i class="fas fa-check"></i> Infraestructura</li>
+                        </ul>
+                    </div>
+                    <div class="tutorial-animation" id="robot-animation-2"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="prevTutorialStep(1)">Anterior</button>
+                <button class="btn btn-primary" onclick="nextTutorialStep(3)">Siguiente</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay tutorial-overlay" id="modal-tutorial-3">
+        <div class="modal glass-card modal-tutorial" style="width: 90%; max-width: 700px;">
+            <div class="modal-body">
+                <div class="tutorial-content">
+                    <div class="tutorial-text">
+                        <h2><i class="fas fa-map-marker-alt"></i> Ubicación y Status</h2>
+                        <p>Selecciona la ubicación y define el avance del expediente.</p>
+                        <p>Comienza ahora mismo</p>
+                    </div>
+                    <div class="tutorial-animation" id="robot-animation-3"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="prevTutorialStep(2)">Anterior</button>
+                <button class="btn btn-success" onclick="closeTutorial()"><i class="fas fa-check"></i>
+                    ¡Entendido!</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================
+       MODAL: BIENVENIDA REVISOR
+       ============================================ -->
+    <div class="modal-overlay tutorial-overlay" id="modal-tutorial-revisor">
+        <div class="modal glass-card modal-tutorial" style="width: 90%; max-width: 700px;">
+            <div class="modal-body">
+                <div class="tutorial-content">
+                    <div class="tutorial-text">
+                        <h2><i class="fas fa-user-check"></i> Bienvenido Revisor</h2>
+                        <p>Te explicamos cómo usar el sistema como revisor.</p>
+                        <p><strong>Tu rol:</strong> Revisar y validar las fichas técnicas.</p>
+                        <ul>
+                            <li><i class="fas fa-check"></i> Visualiza todas las fichas asignadas</li>
+                            <li><i class="fas fa-check"></i> Añade comentarios y observaciones</li>
+                            <li><i class="fas fa-check"></i> Valida la información de las fichas</li>
+                        </ul>
+                    </div>
+                    <div class="tutorial-animation" id="robot-animation-revisor"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-success" onclick="closeTutorialRevisor()"><i class="fas fa-check"></i>
+                    ¡Entendido!</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================
+       MODAL: BIENVENIDA VISOR
+       ============================================ -->
+    <div class="modal-overlay tutorial-overlay" id="modal-tutorial-visor">
+        <div class="modal glass-card modal-tutorial" style="width: 90%; max-width: 700px;">
+            <div class="modal-body">
+                <div class="tutorial-content">
+                    <div class="tutorial-text">
+                        <h2><i class="fas fa-user"></i> Bienvenido Visor</h2>
+                        <p>Te explicamos cómo usar el sistema como visor.</p>
+                        <p><strong>Tu rol:</strong> Consultar y visualizar fichas técnicas.</p>
+                        <ul>
+                            <li><i class="fas fa-check"></i> Visualiza todas las fichas técnicas</li>
+                            <li><i class="fas fa-check"></i> Consulta la información de las fichas</li>
+                            <li><i class="fas fa-check"></i> Genera reportes de consulta</li>
+                        </ul>
+                    </div>
+                    <div class="tutorial-animation" id="robot-animation-visor"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-success" onclick="closeTutorialVisor()"><i class="fas fa-check"></i>
+                    ¡Entendido!</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-control-geocoder@2.4.0/dist/Control.Geocoder.js"></script>
+
+    <!-- Custom Delete Notification -->
+    <div id="delete-notification" class="delete-notification-overlay">
+        <div class="delete-notification-content glass-card">
+            <div class="delete-notification-header">
+                <h3><i class="fas fa-exclamation-triangle"></i> Confirmar Eliminación</h3>
+            </div>
+            <div class="delete-notification-body">
+                <div class="delete-animation-container" id="delete-animation-container"></div>
+                <p id="delete-notification-message">¿Estás seguro de que deseas eliminar este elemento?</p>
+            </div>
+            <div class="delete-notification-footer">
+                <button class="btn btn-secondary" id="delete-cancel-btn">Cancelar</button>
+                <button class="btn btn-danger" id="delete-confirm-btn">Eliminar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- App Scripts -->
+    <script src="config.js"></script>
+    <script src="script.js"></script>
+</body>
+
+</html>
