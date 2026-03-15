@@ -87,7 +87,7 @@
             <div class="header-actions">
                 <div style="position: relative; display: inline-block;">
                     <button class="btn btn-secondary btn-sm" id="btn-messages-admin" style="display: none;">
-                        <i class="fas fa-comments"></i> Mensajes
+                        <i class="fas fa-comments"></i> <span>Mensajes</span>
                     </button>
                     <span class="badge-comments" id="badge-comments" style="display: none;">0</span>
                 </div>
@@ -126,6 +126,12 @@
                     <h3>Nueva Ficha</h3>
                     <p>Crear ficha técnica</p>
                 </div>
+                <div class="action-card glass-card" id="action-delete-ficha"
+                    style="height: 160px; width: 100%; max-width: 300px;">
+                    <span class="icon"><i class="fas fa-trash"></i></span>
+                    <h3>Eliminar Ficha</h3>
+                    <p>Eliminar fichas técnicas</p>
+                </div>
             </div>
 
             <!-- Search Box -->
@@ -133,7 +139,7 @@
                 <select id="search-type-admin" style="padding: 8px; border-radius: 6px; border: 1px solid #ddd;">
                     <option value="folio">Folio</option>
                     <option value="sifais">SIFAIS</option>
-                    <option value="date">Fecha</option>
+                    <option value="year">Año</option>
                 </select>
                 <input type="text" id="search-admin" placeholder="Buscar..." style="max-width: 300px; padding: 8px;">
                 <button class="btn btn-primary" onclick="searchFichas('admin')"><i class="fas fa-search"></i>
@@ -168,6 +174,14 @@
         <header class="dashboard-header">
             <span class="brand" id="brand-welcome-revisor">Bienvenido</span>
             <div class="header-actions">
+                <!-- Botón de mensajes para Revisor -->
+                <div style="position: relative; display: inline-block;">
+                    <button class="btn btn-secondary btn-sm" id="btn-messages-revisor">
+                        <i class="fas fa-comments"></i> <span>Mensajes</span>
+                    </button>
+                    <span class="badge-comments" id="badge-comments-revisor" style="display: none;">0</span>
+                </div>
+                
                 <button class="btn btn-secondary btn-sm" id="btn-report-general-revisor"><i
                         class="fas fa-chart-bar"></i> Reporte</button>
                 <div class="user-badge">
@@ -187,7 +201,7 @@
                 <select id="search-type-revisor" style="padding: 8px; border-radius: 6px; border: 1px solid #ddd;">
                     <option value="folio">Folio</option>
                     <option value="sifais">SIFAIS</option>
-                    <option value="date">Fecha</option>
+                    <option value="year">Año</option>
                 </select>
                 <input type="text" id="search-revisor" placeholder="Buscar..." style="max-width: 300px; padding: 8px;">
                 <button class="btn btn-primary" onclick="searchFichas('revisor')"><i class="fas fa-search"></i>
@@ -222,6 +236,12 @@
         <header class="dashboard-header">
             <span class="brand" id="brand-welcome-visor">Bienvenido</span>
             <div class="header-actions">
+                <div style="position: relative; display: inline-block;">
+                    <button class="btn btn-secondary btn-sm" id="btn-messages-visor" style="display: none;">
+                        <i class="fas fa-comments"></i> <span>Mensajes</span>
+                    </button>
+                    <span class="badge-comments" id="badge-comments-visor" style="display: none;">0</span>
+                </div>
                 <button class="btn btn-secondary btn-sm" id="btn-report-general-visor"><i class="fas fa-chart-bar"></i>
                     Reporte</button>
                 <div class="user-badge">
@@ -241,7 +261,7 @@
                 <select id="search-type-visor" style="padding: 8px; border-radius: 6px; border: 1px solid #ddd;">
                     <option value="folio">Folio</option>
                     <option value="sifais">SIFAIS</option>
-                    <option value="date">Fecha</option>
+                    <option value="year">Año</option>
                 </select>
                 <input type="text" id="search-visor" placeholder="Buscar..." style="max-width: 300px; padding: 8px;">
                 <button class="btn btn-primary" onclick="searchFichas('visor')"><i class="fas fa-search"></i>
@@ -331,6 +351,26 @@
     </div>
 
     <!-- ============================================
+       MODAL: ELIMINAR FICHAS
+       ============================================ -->
+    <div class="modal-overlay" id="modal-delete-ficha">
+        <div class="modal glass-card" style="width: 90%; max-width: 800px; height: auto; max-height: 80vh;">
+            <div class="modal-header">
+                <h2><i class="fas fa-trash"></i> Eliminar Fichas Técnicas</h2>
+                <button class="modal-close" data-close="modal-delete-ficha">&times;</button>
+            </div>
+            <div class="modal-body" style="overflow-y: auto; max-height: 60vh;">
+                <div id="delete-ficha-list">
+                    <!-- Fichas cargadas dinámicamente -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-close="modal-delete-ficha">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================
        MODAL: FICHA TECNICA (Multi-step)
        ============================================ -->
     <div class="modal-overlay" id="modal-ficha">
@@ -345,6 +385,7 @@
                     <div class="step-dot active" data-step="1"></div>
                     <div class="step-dot" data-step="2"></div>
                     <div class="step-dot" data-step="3"></div>
+                    <div class="step-dot" data-step="4"></div>
                 </div>
 
                 <!-- Step 1: Basic Info -->
@@ -387,6 +428,23 @@
                             <label>Origen de Recursos</label>
                             <input type="text" id="ficha-origen-recursos" placeholder="Ej: Estatal, Federal, etc.">
                         </div>
+                        <div class="form-group">
+                            <label>Año</label>
+                            <select id="ficha-anio">
+                                <option value="">Seleccionar...</option>
+                                <option value="2020">2020</option>
+                                <option value="2021">2021</option>
+                                <option value="2022">2022</option>
+                                <option value="2023">2023</option>
+                                <option value="2024">2024</option>
+                                <option value="2025">2025</option>
+                                <option value="2026">2026</option>
+                                <option value="2027">2027</option>
+                                <option value="2028">2028</option>
+                                <option value="2029">2029</option>
+                                <option value="2030">2030</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
 
@@ -410,11 +468,21 @@
                     <div class="form-grid">
                         <div class="form-group">
                             <label>Topografía</label>
-                            <input type="text" id="ficha-topografia" placeholder="Ej: Si, No">
+                            <select id="ficha-topografia">
+                                <option value="">Seleccionar...</option>
+                                <option value="Si">Si</option>
+                                <option value="No">No</option>
+                                <option value="No Aplica">No Aplica</option>
+                            </select>
                         </div>
                         <div class="form-group">
                             <label>Mecánica </label>
-                            <input type="text" id="ficha-mecanica-text" placeholder="Ej: Si, No">
+                            <select id="ficha-mecanica-text">
+                                <option value="">Seleccionar...</option>
+                                <option value="Si">Si</option>
+                                <option value="No">No</option>
+                                <option value="No Aplica">No Aplica</option>
+                            </select>
                         </div>
                         <div class="form-group">
                             <label>Gas (%)</label>
@@ -430,15 +498,25 @@
                         </div>
                         <div class="form-group">
                             <label>Alumbrado</label>
-                            <input type="text" id="ficha-alumbrado-text" placeholder="Ej: Si, No">
+                            <select id="ficha-alumbrado-text">
+                                <option value="">Seleccionar...</option>
+                                <option value="Si">Si</option>
+                                <option value="No">No</option>
+                                <option value="No Aplica">No Aplica</option>
+                            </select>
                         </div>
                         <div class="form-group">
                             <label>Vía Ciclista</label>
-                            <input type="text" id="ficha-via-ciclista-text" placeholder="Ej: Si,No">
+                            <select id="ficha-via-ciclista-text">
+                                <option value="">Seleccionar...</option>
+                                <option value="Si">Si</option>
+                                <option value="No">No</option>
+                                <option value="No Aplica">No Aplica</option>
+                            </select>
                         </div>
                         <div class="form-group">
                             <label>ZAP</label>
-                            <input type="text" id="ficha-zap">
+                            <input type="text" id="ficha-zap" placeholder="">
                         </div>
                         <div class="form-group">
                             <label>Expediente (%)</label>
@@ -462,6 +540,26 @@
                     </div>
                 </div>
 
+                <!-- Step 4: File Upload -->
+                <div class="step-content" data-step="4">
+                    <h3><i class="fas fa-file-pdf"></i> Subir Documentos (PDF)</h3>
+                    <p class="info-text">Adjunta los archivos PDF requeridos. Se optimizarán automáticamente para reducir el peso.</p>
+                    <div class="form-group">
+                        <label for="ficha-pdf-input">Seleccionar archivos PDF</label>
+                        <input type="file" id="ficha-pdf-input" accept=".pdf" multiple style="display: block; margin-top: 10px;">
+                    </div>
+                    <div id="pdf-preview-list" style="margin-top: 20px;">
+                        <!-- Lista de archivos seleccionados aparecerá aquí -->
+                    </div>
+                    
+                    <!-- Sección de PDFs anexados existentes (solo para edición) -->
+                    <div id="existing-pdfs-section" style="margin-top: 30px; display: none;">
+                        <h4><i class="fas fa-list"></i> Documentos Anexos Existentes</h4>
+                        <div id="existing-pdfs-list" style="margin-top: 10px;">
+                            <!-- Lista de PDFs existentes aparecerá aquí -->
+                        </div>
+                    </div>
+                </div>
 
             </div>
             <div class="modal-footer">
@@ -564,7 +662,7 @@
                                 <th>Ubicación</th>
                                 <th>Topografía</th>
                                 <th>Mecánica</th>
-                                <th>Vía Ciclista</th>
+                                <th>Obra/Proyecto</th>
                             </tr>
                         </thead>
                         <tbody id="report-table-body"></tbody>
@@ -700,6 +798,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet-control-geocoder@2.4.0/dist/Control.Geocoder.js"></script>
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 
     <!-- Custom Delete Notification -->
     <div id="delete-notification" class="delete-notification-overlay">

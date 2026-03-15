@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS fichas (
   status_agua BOOLEAN DEFAULT false,
   status_drenaje BOOLEAN DEFAULT false,
   status_percent INTEGER DEFAULT 0,
+  anio INTEGER, -- Nuevo campo para el año
   created_by UUID REFERENCES usuarios(id),
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
@@ -59,7 +60,34 @@ ALTER TABLE usuarios ENABLE ROW LEVEL SECURITY;
 ALTER TABLE fichas ENABLE ROW LEVEL SECURITY;
 ALTER TABLE comentarios ENABLE ROW LEVEL SECURITY;
 
+-- 6. Tabla de Archivos PDF (optimizados)
+CREATE TABLE IF NOT EXISTS archivos_ficha (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  ficha_id UUID REFERENCES fichas(id) ON DELETE CASCADE,
+  nombre_original TEXT NOT NULL,
+  nombre_optimizado TEXT NOT NULL,
+  peso_original BIGINT, -- en bytes
+  peso_optimizado BIGINT, -- en bytes
+  mime_type TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Añadir columna usuario_id si no existe (para compatibilidad con versiones anteriores)
+DO $$ 
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'archivos_ficha' AND column_name = 'usuario_id') THEN
+    ALTER TABLE archivos_ficha ADD COLUMN usuario_id UUID REFERENCES usuarios(id);
+  END IF;
+END $$;
+
 -- Políticas de acceso público (para la clave anon)
 CREATE POLICY "Allow all access to usuarios" ON usuarios FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all access to fichas" ON fichas FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all access to comentarios" ON comentarios FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all access to archivos_ficha" ON archivos_ficha FOR ALL USING (true) WITH CHECK (true);
+
+-- Políticas de acceso para Supabase Storage (archivos_ficha)
+-- NOTA: Estas políticas se aplican a la tabla interna de storage de Supabase
+CREATE POLICY "Allow public access to archivos_ficha bucket" ON storage.objects
+FOR ALL USING (bucket_id = 'archivos_ficha' AND (auth.role() = 'anon' OR auth.role() = 'authenticated'))
+WITH CHECK (bucket_id = 'archivos_ficha' AND (auth.role() = 'anon' OR auth.role() = 'authenticated'));

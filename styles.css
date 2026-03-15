@@ -332,6 +332,8 @@ textarea:focus {
     border-radius: 8px;
     cursor: pointer;
     transition: var(--transition);
+    z-index: 10;
+    position: relative;
 }
 
 .btn-logout:hover {
@@ -451,7 +453,7 @@ textarea:focus {
 /* Barra de encabezados para la grilla */
 .fichas-header {
     display: grid;
-    grid-template-columns: 100px 1fr 1.5fr 120px 100px 100px;
+    grid-template-columns: 100px 1fr 1.5fr 80px 100px 100px;
     gap: 15px;
     padding: 10px 20px;
     font-weight: 600;
@@ -464,7 +466,7 @@ textarea:focus {
 
 .ficha-card {
     display: grid;
-    grid-template-columns: 100px 1fr 1.5fr 120px 100px 100px;
+    grid-template-columns: 100px 1fr 1.5fr 80px 100px 100px;
     gap: 15px;
     padding: 15px 20px;
     align-items: center;
@@ -474,6 +476,65 @@ textarea:focus {
     transition: var(--transition);
     background: white;
     border: 1px solid #e9ecef;
+}
+
+.anio-cell {
+    font-size: 0.9rem;
+    color: var(--text-dark);
+    text-align: center;
+    font-weight: 500;
+}
+
+/* PDF Detail List Styles */
+.pdf-detail-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.pdf-detail-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 15px;
+    background: rgba(125, 36, 71, 0.05);
+    border-radius: 6px;
+}
+
+.pdf-detail-item .pdf-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+}
+
+.pdf-detail-item i {
+    color: var(--primary-color);
+    font-size: 1.2rem;
+}
+
+.pdf-details {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.pdf-name {
+    font-weight: 500;
+    color: var(--text-dark);
+}
+
+.pdf-meta {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.pdf-size {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    margin-right: 10px;
 }
 
 .ficha-card:hover {
@@ -606,17 +667,49 @@ textarea:focus {
 
 /* Dropdown de comentarios */
 .comments-dropdown {
-    position: absolute;
-    top: 100%;
+    position: fixed;
+    top: 60px;
     right: 0;
     width: 350px;
-    max-height: 400px;
+    max-height: calc(100vh - 80px);
     overflow-y: auto;
     background: white;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border-radius: 8px 0 0 8px;
+    box-shadow: -4px 0 12px rgba(0, 0, 0, 0.15);
     z-index: 1000;
-    margin-top: 5px;
+    transform: translateX(100%);
+    transition: transform 0.3s ease-in-out;
+    pointer-events: none;
+}
+
+.comments-dropdown.open {
+    transform: translateX(0);
+    pointer-events: auto;
+}
+
+/* Ajustes para móviles */
+@media (max-width: 768px) {
+    .comments-dropdown {
+        top: 50px;
+        width: 300px;
+        max-height: calc(100vh - 70px);
+    }
+}
+
+@media (max-width: 480px) {
+    .comments-dropdown {
+        top: 45px;
+        width: 280px;
+        max-height: calc(100vh - 65px);
+    }
+}
+
+@media (max-width: 360px) {
+    .comments-dropdown {
+        top: 40px;
+        width: 260px;
+        max-height: calc(100vh - 60px);
+    }
 }
 
 .comments-dropdown-header {
@@ -1030,6 +1123,28 @@ textarea:focus {
     background: rgba(231, 76, 60, 0.1);
 }
 
+/* Contenedor de comentarios */
+#comments-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* Estilos para comentarios según el autor */
+.comment-card.comment-current-user {
+    background: rgba(144, 238, 144, 0.2); /* Verde claro */
+    border-left-color: #90EE90;
+    align-self: flex-end; /* Alinear a la derecha */
+    max-width: 80%;
+}
+
+.comment-card.comment-other-user {
+    background: rgba(221, 160, 221, 0.2); /* Morado pastel */
+    border-left-color: #DDA0DD;
+    align-self: flex-start; /* Alinear a la izquierda */
+    max-width: 80%;
+}
+
 .comment-type-selector {
     display: flex;
     gap: 10px;
@@ -1175,58 +1290,7 @@ textarea:focus {
 }
 
 /* ---- Responsive ---- */
-@media (max-width: 768px) {
-    .login-left-section {
-        display: none;
-    }
 
-    .dashboard-header {
-        padding: 10px 15px;
-        flex-wrap: wrap;
-        gap: 10px;
-    }
-
-    .dashboard-content {
-        padding: 15px;
-    }
-
-    .action-cards {
-        flex-direction: column;
-    }
-
-    .action-card {
-        width: 100%;
-    }
-
-    .fichas-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .tutorial-content {
-        flex-direction: column-reverse;
-        text-align: center;
-    }
-
-    .tutorial-animation {
-        width: 150px;
-        height: 150px;
-    }
-
-    .modal-body {
-        max-height: 60vh;
-    }
-}
-
-@media (max-width: 480px) {
-    .header-actions {
-        width: 100%;
-        justify-content: flex-end;
-    }
-
-    .brand {
-        font-size: 1.1rem;
-    }
-}
 
 /* ---- Loading Screen ---- */
 .loading-view-fullscreen {
@@ -1417,3 +1481,456 @@ textarea:focus {
 .delete-notification-footer .btn {
     min-width: 100px;
 }
+
+/* ---- Delete Ficha List Styles ---- */
+.ficha-delete-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    transition: background-color 0.2s;
+}
+
+.ficha-delete-item:hover {
+    background-color: rgba(125, 36, 71, 0.05);
+}
+
+.ficha-delete-item:last-child {
+    border-bottom: none;
+}
+
+.ficha-info {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.ficha-folio {
+    font-weight: 600;
+    color: var(--primary-color);
+    font-size: 1rem;
+}
+
+.ficha-concepto {
+    font-size: 0.9rem;
+    color: var(--text-light);
+    max-width: 400px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ficha-sifais {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.btn-delete-ficha {
+    background-color: transparent;
+    border: 1px solid var(--status-red);
+    color: var(--status-red);
+    padding: 8px 15px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.btn-delete-ficha:hover {
+    background-color: var(--status-red);
+    color: white;
+}
+
+.empty-fichas {
+    text-align: center;
+    padding: 30px;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+/* PDF Upload Styles */
+.pdf-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    background: rgba(125, 36, 71, 0.05);
+    border-radius: 6px;
+    margin-bottom: 8px;
+}
+
+.pdf-item i {
+    color: var(--primary-color);
+    font-size: 1.2rem;
+}
+
+/* ---- Large Screens (min-width: 1200px) ---- */
+@media (min-width: 1200px) {
+    .action-cards {
+        justify-content: center;
+        max-width: 1200px;
+        margin: 0 auto 40px auto;
+    }
+    
+    .action-card {
+        max-width: 350px;
+        flex: 1;
+        min-width: 250px;
+    }
+}
+
+/* ---- Tablet Responsiveness (max-width: 1024px) ---- */
+@media (max-width: 1024px) {
+    .dashboard-header {
+        padding: 12px 20px;
+    }
+    
+    .brand {
+        font-size: 1.2rem;
+    }
+    
+    .header-actions {
+        gap: 10px;
+    }
+    
+    .action-cards {
+        gap: 15px;
+    }
+    
+    .action-card {
+        height: 140px !important;
+        padding: 15px;
+    }
+    
+    .action-card .icon {
+        font-size: 1.8rem;
+    }
+    
+    .action-card h3 {
+        font-size: 1rem;
+    }
+}
+
+/* ---- Mobile Large Responsiveness (max-width: 768px) ---- */
+@media (max-width: 768px) {
+    .login-left-section {
+        display: none;
+    }
+
+    .dashboard-header {
+        padding: 10px 15px;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .dashboard-content {
+        padding: 15px;
+    }
+
+    .action-cards {
+        flex-direction: column;
+    }
+
+    .action-card {
+        width: 100%;
+        max-width: 100% !important;
+    }
+
+    .fichas-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .tutorial-content {
+        flex-direction: column-reverse;
+        text-align: center;
+    }
+
+    .tutorial-animation {
+        width: 150px;
+        height: 150px;
+    }
+
+    .modal-body {
+        max-height: 60vh;
+    }
+    
+    /* Header improvements */
+    .header-actions {
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 8px;
+    }
+    
+    .user-badge {
+        padding: 4px 10px;
+        font-size: 0.8rem;
+    }
+    
+    .btn-secondary {
+        padding: 6px 12px;
+        font-size: 0.85rem;
+    }
+    
+    .btn-logout {
+        padding: 6px 12px;
+        font-size: 0.85rem;
+    }
+}
+
+/* ---- Mobile Small Responsiveness (max-width: 480px) ---- */
+@media (max-width: 480px) {
+    .dashboard-header {
+        padding: 10px 15px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .brand {
+        font-size: 1.1rem;
+        width: 100%;
+        text-align: center;
+    }
+    
+    .header-actions {
+        width: 100%;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    
+    .user-badge {
+        font-size: 0.75rem;
+        padding: 3px 8px;
+    }
+    
+    .action-cards {
+        gap: 12px;
+    }
+    
+    .action-card {
+        height: 120px !important;
+        padding: 12px;
+    }
+    
+    .action-card .icon {
+        font-size: 1.5rem;
+        margin-bottom: 5px;
+    }
+    
+    .action-card h3 {
+        font-size: 0.9rem;
+        margin-bottom: 3px;
+    }
+    
+    .action-card p {
+        font-size: 0.75rem;
+    }
+    
+    .btn-secondary, .btn-logout {
+        padding: 5px 10px;
+        font-size: 0.8rem;
+    }
+    
+    /* Asegurar que el botón de logout sea fácil de tocar en móviles */
+    .btn-logout {
+        min-width: 80px;
+        text-align: center;
+    }
+}
+
+/* ---- Very Mobile Small Responsiveness (max-width: 360px) ---- */
+@media (max-width: 360px) {
+    .dashboard-header {
+        padding: 8px 10px;
+        gap: 8px;
+    }
+    
+    .brand {
+        font-size: 1rem;
+    }
+    
+    .header-actions {
+        gap: 5px;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    
+    .btn-secondary, .btn-logout {
+        padding: 4px 8px;
+        font-size: 0.75rem;
+    }
+    
+    .btn-secondary i, .btn-logout i {
+        font-size: 0.9rem;
+    }
+    
+    /* Ocultar texto del botón de mensajes en dispositivos muy pequeños */
+    #btn-messages-admin span {
+        display: none;
+    }
+    
+    #btn-messages-admin {
+        padding: 4px 8px;
+    }
+    
+    #btn-messages-admin i {
+        margin-right: 0;
+    }
+    
+    .badge-comments {
+        width: 14px;
+        height: 14px;
+        font-size: 9px;
+        top: -6px;
+        right: -6px;
+    }
+    
+    .user-badge {
+        font-size: 0.7rem;
+        padding: 2px 6px;
+    }
+    
+    .action-card {
+        height: 110px !important;
+        padding: 10px;
+    }
+    
+    .action-card .icon {
+        font-size: 1.3rem;
+    }
+    
+    .action-card h3 {
+        font-size: 0.85rem;
+    }
+    
+    .action-card p {
+        font-size: 0.7rem;
+    }
+    
+    .btn-logout {
+        min-width: 70px;
+    }
+}
+
+/* PDF Detail List Styles */
+.pdf-detail-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.pdf-detail-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 15px;
+    background: rgba(125, 36, 71, 0.05);
+    border-radius: 6px;
+}
+
+.pdf-detail-item .pdf-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+}
+
+.pdf-detail-item i {
+    color: var(--primary-color);
+    font-size: 1.2rem;
+}
+
+.pdf-details {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.pdf-name {
+    font-weight: 500;
+    color: var(--text-dark);
+}
+
+.pdf-meta {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.pdf-size {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    margin-right: 10px;
+}
+
+/* Estilos para la columna de año en el grid */
+.anio-cell {
+    font-size: 0.9rem;
+    color: var(--text-dark);
+    text-align: center;
+    font-weight: 500;
+}
+
+/* Estilos para la lista de PDFs existentes en el modal de edición */
+.existing-pdf-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.existing-pdf-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 15px;
+    background: rgba(125, 36, 71, 0.05);
+    border-radius: 6px;
+    border: 1px solid rgba(125, 36, 71, 0.1);
+}
+
+.pdf-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+}
+
+.pdf-info i {
+    color: var(--primary-color);
+    font-size: 1.2rem;
+}
+
+.pdf-info .pdf-name {
+    flex: 1;
+    font-weight: 500;
+    color: var(--text-dark);
+}
+
+.pdf-info .pdf-size {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+
+.pdf-actions {
+    display: flex;
+    gap: 5px;
+}
+
+.pdf-details {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.pdf-meta {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+

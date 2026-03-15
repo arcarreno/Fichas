@@ -8,7 +8,7 @@ let fichaMarker = null;
 let detailMap = null;
 let detailMarker = null;
 let currentStep = 1;
-const totalSteps = 3; // Reducido a 3 pasos
+const totalSteps = 4; // 4 pasos: Info, Mapa, Infraestructura, PDF
 let selectedCommentType = null;
 
 // Coordenadas originales de la ficha que se está editando
@@ -38,6 +38,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Initialize Event Listeners
         initEventListeners();
 
+        // Initialize Realtime (WebSockets)
+        initRealtime();
+
     } catch (err) {
         console.error('Initialization error:', err);
         showToast('Error al inicializar la aplicación', 'error');
@@ -46,6 +49,64 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 function db() {
     return supabaseClient;
+}
+
+function navigateToDashboard() {
+    if (!currentUser) return;
+
+    // Hide Login View
+    const loginView = document.getElementById('login-view');
+    if (loginView) loginView.classList.remove('active');
+
+    // Show appropriate Dashboard
+    const role = currentUser ? currentUser.role : null;
+
+    // Show/Hide messages button based on role
+    const btnMessagesAdmin = document.getElementById('btn-messages-admin');
+    const btnMessagesVisor = document.getElementById('btn-messages-visor');
+    
+    if (btnMessagesAdmin) {
+        btnMessagesAdmin.style.display = role === 'admin' ? 'block' : 'none';
+    }
+    if (btnMessagesVisor) {
+        btnMessagesVisor.style.display = role === 'visor' ? 'block' : 'none';
+    }
+
+    if (role === 'admin') {
+        const adminName = document.getElementById('admin-user-name');
+        if (adminName) adminName.textContent = currentUser.username;
+        const brandAdmin = document.getElementById('brand-welcome-admin');
+        if (brandAdmin) brandAdmin.textContent = 'Bienvenid@ ' + currentUser.username;
+        showView('admin-view');
+        loadFichas('admin-fichas-grid');
+        // Load comments count for admin
+        if (btnMessagesAdmin) {
+            loadCommentsCount();
+        }
+    } else if (role === 'revisor') {
+        const revisorName = document.getElementById('revisor-user-name');
+        if (revisorName) revisorName.textContent = currentUser.username;
+        const brandRevisor = document.getElementById('brand-welcome-revisor');
+        if (brandRevisor) brandRevisor.textContent = 'Bienvenid@ ' + currentUser.username;
+        showView('revisor-view');
+        loadFichas('revisor-fichas-grid');
+        // Load comments count for revisor
+        const btnMessagesRevisor = document.getElementById('btn-messages-revisor');
+        if (btnMessagesRevisor) {
+            loadCommentsCountRevisor();
+        }
+    } else if (role === 'visor') {
+        const visorName = document.getElementById('visor-user-name');
+        if (visorName) visorName.textContent = currentUser.username;
+        const brandVisor = document.getElementById('brand-welcome-visor');
+        if (brandVisor) brandVisor.textContent = 'Bienvenid@ ' + currentUser.username;
+        showView('visor-view');
+        loadFichas('visor-fichas-grid');
+        // Load comments count for visor
+        if (btnMessagesVisor) {
+            loadCommentsCountVisor();
+        }
+    }
 }
 
 // ---- Session & Auth ----
@@ -60,6 +121,7 @@ function checkSession() {
     }
 }
 
+// ---- Session & Auth (Continued) ----
 async function handleLogin(e) {
     e.preventDefault();
     const username = document.getElementById('login-username').value.trim();
@@ -134,12 +196,6 @@ async function handleLogin(e) {
     btn.disabled = false;
 }
 
-function handleLogout() {
-    currentUser = null;
-    sessionStorage.removeItem('currentUser');
-    window.location.reload();
-}
-
 function navigateToDashboard() {
     if (!currentUser) return;
 
@@ -150,31 +206,51 @@ function navigateToDashboard() {
     const role = currentUser.role;
 
     // Show/Hide messages button based on role
-    const btnMessages = document.getElementById('btn-messages-admin');
-    if (btnMessages) {
-        btnMessages.style.display = role === 'admin' ? 'block' : 'none';
+    const btnMessagesAdmin = document.getElementById('btn-messages-admin');
+    const btnMessagesVisor = document.getElementById('btn-messages-visor');
+    
+    if (btnMessagesAdmin) {
+        btnMessagesAdmin.style.display = role === 'admin' ? 'block' : 'none';
+    }
+    if (btnMessagesVisor) {
+        btnMessagesVisor.style.display = role === 'visor' ? 'block' : 'none';
     }
 
     if (role === 'admin') {
-        document.getElementById('admin-user-name').textContent = currentUser.nombre;
-        document.getElementById('brand-welcome-admin').textContent = 'Bienvenido Edgar';
+        document.getElementById('admin-user-name').textContent = currentUser.username;
+        document.getElementById('brand-welcome-admin').textContent = 'Bienvenid@ ' + currentUser.username;
         showView('admin-view');
         loadFichas('admin-fichas-grid');
         // Load comments count for admin
-        if (btnMessages) {
+        if (btnMessagesAdmin) {
             loadCommentsCount();
         }
     } else if (role === 'revisor') {
-        document.getElementById('revisor-user-name').textContent = currentUser.nombre;
-        document.getElementById('brand-welcome-revisor').textContent = 'Bienvenido ' + currentUser.nombre;
+        document.getElementById('revisor-user-name').textContent = currentUser.username;
+        document.getElementById('brand-welcome-revisor').textContent = 'Bienvenid@ ' + currentUser.username;
         showView('revisor-view');
         loadFichas('revisor-fichas-grid');
-    } else {
-        document.getElementById('visor-user-name').textContent = currentUser.nombre;
-        document.getElementById('brand-welcome-visor').textContent = 'Bienvenido ' + currentUser.nombre;
+        // Load comments count for revisor
+        const btnMessagesRevisor = document.getElementById('btn-messages-revisor');
+        if (btnMessagesRevisor) {
+            loadCommentsCountRevisor();
+        }
+    } else if (role === 'visor') {
+        document.getElementById('visor-user-name').textContent = currentUser.username;
+        document.getElementById('brand-welcome-visor').textContent = 'Bienvenid@ ' + currentUser.username;
         showView('visor-view');
         loadFichas('visor-fichas-grid');
+        // Load comments count for visor
+        if (btnMessagesVisor) {
+            loadCommentsCountVisor();
+        }
     }
+}
+
+function handleLogout() {
+    currentUser = null;
+    sessionStorage.removeItem('currentUser');
+    window.location.reload();
 }
 
 function showView(viewId) {
@@ -203,6 +279,9 @@ function initEventListeners() {
     const actionCreateFicha = document.getElementById('action-create-ficha');
     if (actionCreateFicha) actionCreateFicha.addEventListener('click', openFichaModal);
 
+    const actionDeleteFicha = document.getElementById('action-delete-ficha');
+    if (actionDeleteFicha) actionDeleteFicha.addEventListener('click', openDeleteFichaModal);
+
     // Save User
     const btnSaveUser = document.getElementById('btn-save-user');
     if (btnSaveUser) btnSaveUser.addEventListener('click', handleCreateUser);
@@ -223,6 +302,28 @@ function initEventListeners() {
         const el = document.getElementById(id);
         if (el) el.addEventListener('input', updateStatusPreview);
     });
+
+    // PDF Upload Preview
+    const pdfInput = document.getElementById('ficha-pdf-input');
+    if (pdfInput) {
+        pdfInput.addEventListener('change', function (e) {
+            const files = e.target.files;
+            const previewList = document.getElementById('pdf-preview-list');
+            if (!previewList) return;
+
+            previewList.innerHTML = '';
+            for (let file of files) {
+                const item = document.createElement('div');
+                item.className = 'pdf-item';
+                item.innerHTML = `
+                    <i class="fas fa-file-pdf"></i>
+                    <span>${file.name}</span>
+                    <span style="color: #666; font-size: 0.8em;">(${(file.size / 1024).toFixed(1)} KB)</span>
+                `;
+                previewList.appendChild(item);
+            }
+        });
+    }
 
     // Report Buttons
     ['btn-report-general', 'btn-report-general-revisor', 'btn-report-general-visor'].forEach(id => {
@@ -249,30 +350,57 @@ function initEventListeners() {
         if (btn) btn.addEventListener('click', () => exportToExcel(id));
     });
 
-    // Messages button (only for admin)
-    const btnMessages = document.getElementById('btn-messages-admin');
-    if (btnMessages) {
-        console.log('Botón de mensajes encontrado, agregando evento click');
-        btnMessages.addEventListener('click', function (e) {
-            console.log('Click en botón de mensajes');
+    // Messages button (for admin, visor and revisor)
+    const btnMessagesAdmin = document.getElementById('btn-messages-admin');
+    if (btnMessagesAdmin) {
+        console.log('Botón de mensajes admin encontrado, agregando evento click');
+        btnMessagesAdmin.addEventListener('click', function (e) {
+            console.log('Click en botón de mensajes admin');
             e.stopPropagation();
             toggleMessagesDropdown();
         });
-        // Load comments count on page load
+        // Load comments count on page load for admin
         loadCommentsCount();
     } else {
-        console.log('Botón de mensajes NO encontrado');
+        console.log('Botón de mensajes admin NO encontrado');
+    }
+
+    const btnMessagesVisor = document.getElementById('btn-messages-visor');
+    if (btnMessagesVisor) {
+        console.log('Botón de mensajes visor encontrado, agregando evento click');
+        btnMessagesVisor.addEventListener('click', function (e) {
+            console.log('Click en botón de mensajes visor');
+            e.stopPropagation();
+            toggleMessagesDropdown();
+        });
+        // Load comments count on page load for visor
+        // Se cargará en la función checkSession cuando se detecte el rol visor
+    } else {
+        console.log('Botón de mensajes visor NO encontrado');
+    }
+
+    const btnMessagesRevisor = document.getElementById('btn-messages-revisor');
+    if (btnMessagesRevisor) {
+        console.log('Botón de mensajes revisor encontrado, agregando evento click');
+        btnMessagesRevisor.addEventListener('click', function (e) {
+            console.log('Click en botón de mensajes revisor');
+            e.stopPropagation();
+            toggleMessagesDropdown();
+        });
+        // Load comments count on page load for revisor
+        // Se cargará en la función checkSession cuando se detecte el rol revisor
+    } else {
+        console.log('Botón de mensajes revisor NO encontrado');
     }
 
     // Search functionality
-    document.getElementById('search-admin').addEventListener('keypress', function (e) {
-        if (e.key === 'Enter') searchFichas('admin');
-    });
-    document.getElementById('search-revisor').addEventListener('keypress', function (e) {
-        if (e.key === 'Enter') searchFichas('revisor');
-    });
-    document.getElementById('search-visor').addEventListener('keypress', function (e) {
-        if (e.key === 'Enter') searchFichas('visor');
+    ['admin', 'revisor', 'visor'].forEach(profile => {
+        const searchInput = document.getElementById(`search-${profile}`);
+        if (searchInput) {
+            searchInput.addEventListener('keypress', function (e) {
+                if (e.key === 'Enter') searchFichas(profile);
+            });
+        }
     });
 
     // Comments
@@ -412,6 +540,125 @@ async function openManageUsersModal() {
     }
 }
 
+// ---- Ficha Management: List and Delete ----
+async function openDeleteFichaModal() {
+    const fichasList = document.getElementById('delete-ficha-list');
+    fichasList.innerHTML = '<div class="empty-fichas">Cargando fichas...</div>';
+
+    openModal('modal-delete-ficha');
+
+    try {
+        const { data: fichas, error } = await db()
+            .from('fichas')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        if (!fichas || fichas.length === 0) {
+            fichasList.innerHTML = '<div class="empty-fichas">No hay fichas registradas</div>';
+            return;
+        }
+
+        let html = '';
+        fichas.forEach(ficha => {
+            html += `
+                <div class="ficha-delete-item">
+                    <div class="ficha-info">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span class="ficha-folio">${ficha.folio || 'Sin folio'}</span>
+                            <span class="ficha-concepto">${ficha.concepto || 'Sin concepto'}</span>
+                        </div>
+                        <span class="ficha-sifais">SIFAIS: ${ficha.sifais || 'N/A'}</span>
+                    </div>
+                    <button class="btn-delete-ficha" onclick="handleDeleteFicha('${ficha.id}', '${ficha.folio || 'Sin folio'}')">
+                        <i class="fas fa-trash"></i> Eliminar
+                    </button>
+                </div>
+            `;
+        });
+
+        fichasList.innerHTML = html;
+    } catch (err) {
+        console.error('Error loading fichas:', err);
+        fichasList.innerHTML = '<div class="empty-fichas">Error al cargar fichas</div>';
+    }
+}
+
+async function handleDeleteFicha(fichaId, folio) {
+    const message = `¿Estás seguro de que deseas eliminar la ficha "${folio}"?\n\nNOTA: Esta acción es permanente.`;
+
+    const confirmed = await showDeleteNotification(message);
+
+    if (!confirmed) {
+        return;
+    }
+
+    try {
+        // 1. Obtener los PDFs asociados a la ficha
+        const { data: archivos, error: fetchError } = await db()
+            .from('archivos_ficha')
+            .select('nombre_optimizado')
+            .eq('ficha_id', fichaId);
+
+        if (fetchError) throw fetchError;
+
+        // 2. Eliminar los archivos de Supabase Storage
+        if (archivos && archivos.length > 0) {
+            const fileNames = archivos.map(arch => arch.nombre_optimizado);
+            const { error: storageError } = await supabaseClient.storage
+                .from('archivos_ficha')
+                .remove(fileNames);
+
+            if (storageError) throw storageError;
+
+            // 3. Eliminar los registros de la tabla archivos_ficha
+            const { error: dbError } = await db()
+                .from('archivos_ficha')
+                .delete()
+                .eq('ficha_id', fichaId);
+
+            if (dbError) throw dbError;
+        }
+
+        // 4. Eliminar la ficha
+        const { error } = await db()
+            .from('fichas')
+            .delete()
+            .eq('id', fichaId);
+
+        if (error) throw error;
+
+        showToast('Ficha eliminada correctamente', 'success');
+
+        // 5. Recargar la lista en el modal de eliminación (sin cerrarlo)
+        const fichasList = document.getElementById('delete-ficha-list');
+        if (fichasList) {
+            fichasList.innerHTML = '<div class="empty-fichas">Actualizando lista...</div>';
+            
+            const { data: fichas, error } = await db()
+                .from('fichas')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (error) throw error; // Si falla la recarga, mostraremos error pero la ficha ya se eliminó
+
+            if (!fichas || fichas.length === 0) {
+                fichasList.innerHTML = '<div class="empty-fichas">No hay fichas registradas</div>';
+            } else {
+                fichasList.innerHTML = generateFichaDeleteHTML(fichas);
+            }
+        }
+
+        // 6. Actualizar la lista principal de fichas en el panel de administración
+        loadFichas('admin-fichas-grid');
+
+    } catch (err) {
+        console.error('Error deleting ficha:', err);
+        showToast('Error al eliminar la ficha', 'error');
+    }
+}
+
 async function handleDeleteUser(userId, userName) {
     const message = `¿Estás seguro de que deseas eliminar al usuario "${userName}"?\n\nNOTA: Esto también eliminará todos los comentarios hechos por este usuario.`;
 
@@ -446,13 +693,34 @@ async function handleDeleteUser(userId, userName) {
     }
 }
 
+function generateFichaDeleteHTML(fichas) {
+    let html = '';
+    fichas.forEach(ficha => {
+        html += `
+            <div class="ficha-delete-item">
+                <div class="ficha-info">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span class="ficha-folio">${ficha.folio || 'Sin folio'}</span>
+                        <span class="ficha-concepto">${ficha.concepto || 'Sin concepto'}</span>
+                    </div>
+                    <span class="ficha-sifais">SIFAIS: ${ficha.sifais || 'N/A'}</span>
+                </div>
+                <button class="btn-delete-ficha" onclick="handleDeleteFicha('${ficha.id}', '${ficha.folio || 'Sin folio'}')">
+                    <i class="fas fa-trash"></i> Eliminar
+                </button>
+            </div>
+        `;
+    });
+    return html;
+}
+
 // ---- Custom Delete Notification ----
 let deleteAnimation = null;
-let deleteResolve = null;
 
 function showDeleteNotification(message) {
     return new Promise((resolve) => {
-        deleteResolve = resolve;
+        // Usamos una variable local para resolver la promesa actual, evitando conflictos entre múltiples modales
+        const currentResolve = resolve;
 
         const overlay = document.getElementById('delete-notification');
         const messageEl = document.getElementById('delete-notification-message');
@@ -501,7 +769,7 @@ function showDeleteNotification(message) {
 
         newCancelBtn.addEventListener('click', () => {
             overlay.classList.remove('active');
-            deleteResolve(false);
+            currentResolve(false);
         });
 
         newConfirmBtn.addEventListener('click', () => {
@@ -514,7 +782,7 @@ function showDeleteNotification(message) {
             // Esperar la duración exacta de 50 frames
             setTimeout(() => {
                 overlay.classList.remove('active');
-                deleteResolve(true);
+                currentResolve(true);
             }, duration);
         });
     });
@@ -522,6 +790,7 @@ function showDeleteNotification(message) {
 
 // ---- Ficha Management ----
 function openFichaModal(editData = null, mode = 'admin') {
+    console.log('openFichaModal called with editData:', editData);
     // Guardar el modo actual
     editMode = mode;
 
@@ -535,27 +804,34 @@ function openFichaModal(editData = null, mode = 'admin') {
     currentFichaId = editData ? editData.id : null;
     updateStepUI();
 
-    if (editData) {
+    if (editData && editData.id) {
         document.getElementById('modal-ficha-title').innerHTML = '<i class="fas fa-edit"></i> Editar Ficha';
         // Guardar coordenadas originales
         originalLat = editData.lat || null;
         originalLng = editData.lng || null;
         populateFichaForm(editData);
+        // Cargar PDFs existentes
+        console.log('Cargando PDFs existentes para ficha ID:', editData.id);
+        loadExistingPDFs(editData.id);
     } else {
         document.getElementById('modal-ficha-title').innerHTML = '<i class="fas fa-file-alt"></i> Nueva Ficha';
         // Limpiar coordenadas originales para nueva ficha
         originalLat = null;
         originalLng = null;
         resetFichaForm();
+        // Ocultar sección de PDFs existentes
+        const existingPdfsSection = document.getElementById('existing-pdfs-section');
+        if (existingPdfsSection) existingPdfsSection.style.display = 'none';
     }
 
     // Ocultar/mostrar botones de navegación según el modo
     const btnPrev = document.getElementById('btn-ficha-prev');
     const btnNext = document.getElementById('btn-ficha-next');
 
+    // El revisor puede navegar entre el paso 3 y 4
     if (mode === 'revisor') {
-        if (btnPrev) btnPrev.style.display = 'none';
-        if (btnNext) btnNext.style.display = 'none';
+        if (btnPrev) btnPrev.style.display = 'block'; // Habilitar botón anterior para volver al paso 3 desde el 4
+        if (btnNext) btnNext.style.display = 'block'; // Habilitar botón siguiente para avanzar al paso 4 desde el 3
     } else {
         if (btnPrev) btnPrev.style.display = 'block';
         if (btnNext) btnNext.style.display = 'block';
@@ -576,13 +852,20 @@ function resetFichaModal() {
         fichaMap = null;
         fichaMarker = null;
     }
+
+    // Re-habilitar el botón de guardar
+    const btnSave = document.getElementById('btn-ficha-save');
+    if (btnSave) {
+        btnSave.disabled = false;
+        btnSave.innerHTML = '<i class="fas fa-save"></i> Guardar';
+    }
 }
 
 function resetFichaForm() {
     const inputs = [
         'ficha-folio', 'ficha-sifais', 'ficha-tipo', 'ficha-tiempo-ejecucion',
         'ficha-concepto', 'ficha-m2', 'ficha-longitud', 'ficha-costo-parametrico',
-        'ficha-origen-recursos', 'ficha-calle', 'ficha-topografia', 'ficha-mecanica-text', 'ficha-gas',
+        'ficha-origen-recursos', 'ficha-anio', 'ficha-calle', 'ficha-topografia', 'ficha-mecanica-text', 'ficha-gas',
         'ficha-agua', 'ficha-drenaje', 'ficha-alumbrado-text', 'ficha-via-ciclista-text',
         'ficha-zap', 'ficha-definicion', 'ficha-expediente'
     ];
@@ -599,10 +882,61 @@ function resetFichaForm() {
 
     const coordDisplay = document.getElementById('coord-display');
     if (coordDisplay) coordDisplay.textContent = 'Coordenadas: Sin seleccionar';
+
+    // Limpiar input de archivos PDF
+    const pdfInput = document.getElementById('ficha-pdf-input');
+    if (pdfInput) pdfInput.value = '';
+
+    // Limpiar vista previa de PDFs
+    const pdfPreview = document.getElementById('pdf-preview-list');
+    if (pdfPreview) pdfPreview.innerHTML = '';
+
+    // Ocultar sección de PDFs existentes
+    const existingPdfsSection = document.getElementById('existing-pdfs-section');
+    if (existingPdfsSection) existingPdfsSection.style.display = 'none';
+
     updateStatusPreview();
 }
 
 function populateFichaForm(data) {
+    // Campos del paso 1
+    const step1Fields = [
+        'ficha-folio', 'ficha-sifais', 'ficha-tipo', 'ficha-tiempo-ejecucion',
+        'ficha-concepto', 'ficha-m2', 'ficha-longitud', 'ficha-costo-parametrico',
+        'ficha-origen-recursos', 'ficha-anio'
+    ];
+    
+    // Campos del paso 2
+    const step2Fields = ['ficha-calle'];
+    
+    // Campos del paso 3
+    const step3Fields = [
+        'ficha-topografia', 'ficha-mecanica-text', 'ficha-gas', 'ficha-agua',
+        'ficha-drenaje', 'ficha-alumbrado-text', 'ficha-via-ciclista-text',
+        'ficha-zap', 'ficha-definicion', 'ficha-expediente'
+    ];
+
+    // Función para establecer el estado de los campos
+    const setFieldState = (fieldIds, disabled) => {
+        fieldIds.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.disabled = disabled;
+        });
+    };
+
+    // Si es modo revisor, deshabilitar campos del paso 1 y 2
+    if (editMode === 'revisor') {
+        setFieldState(step1Fields, true);
+        setFieldState(step2Fields, true);
+    } else {
+        // Habilitar todos los campos para administradores
+        setFieldState([...step1Fields, ...step2Fields], false);
+    }
+    
+    // Los campos del paso 3 siempre están habilitados (el revisor puede editarlos)
+    setFieldState(step3Fields, false);
+
+    // Llenar los valores
     document.getElementById('ficha-folio').value = data.folio || '';
     document.getElementById('ficha-sifais').value = data.sifais || '';
     document.getElementById('ficha-tipo').value = data.tipo || '';
@@ -612,6 +946,7 @@ function populateFichaForm(data) {
     document.getElementById('ficha-longitud').value = data.longitud || '';
     document.getElementById('ficha-costo-parametrico').value = data.costo_parametrico || '';
     document.getElementById('ficha-origen-recursos').value = data.origen_recursos || '';
+    document.getElementById('ficha-anio').value = data.anio || '';
     document.getElementById('ficha-calle').value = data.calle || '';
     document.getElementById('ficha-topografia').value = data.topografia || '';
     document.getElementById('ficha-mecanica-text').value = data.mecanica || '';
@@ -632,8 +967,14 @@ function populateFichaForm(data) {
 
 // ---- Multi-Step Logic ----
 function nextStep() {
-    // Revisores no pueden navegar entre pasos
-    if (editMode === 'revisor') return;
+    // Revisores solo pueden navegar del paso 3 al 4
+    if (editMode === 'revisor') {
+        if (currentStep === 3) {
+            currentStep++;
+            updateStepUI();
+        }
+        return;
+    }
 
     if (currentStep < totalSteps) {
         currentStep++;
@@ -650,8 +991,14 @@ function nextStep() {
 }
 
 function prevStep() {
-    // Revisores no pueden navegar entre pasos
-    if (editMode === 'revisor') return;
+    // Revisores solo pueden navegar del paso 4 al 3
+    if (editMode === 'revisor') {
+        if (currentStep === 4) {
+            currentStep--;
+            updateStepUI();
+        }
+        return;
+    }
 
     if (currentStep > 1) {
         currentStep--;
@@ -677,11 +1024,7 @@ function updateStepUI() {
     document.getElementById('btn-ficha-save').style.display = currentStep === totalSteps ? 'inline-flex' : 'none';
 }
 
-function updateStatusPreview() {
-    // Obtener valor del campo expediente (porcentaje de avance escrito por el usuario)
-    const expedienteValue = parseFloat(document.getElementById('ficha-expediente').value);
-
-    // Calcular porcentaje basado en infraestructura instalada (automático)
+function calculateInfrastructurePercent() {
     // Lógica: Cada punto vale 20%
     // 1. Topografía (texto): Si tiene contenido -> 20%
     // 2. Mecánica (texto): Si tiene contenido -> 20%
@@ -703,12 +1046,17 @@ function updateStatusPreview() {
     if (aguaVal > 49) autoPercent += 20;
     if (drenajeVal > 49) autoPercent += 20;
 
-    // El avance se calcula SIEMPRE por los 5 puntos, sin importar el valor del expediente
-    const percent = autoPercent;
+    return autoPercent;
+}
+
+function updateStatusPreview() {
+    // El avance se calcula basado en la infraestructura instalada
+    const percent = calculateInfrastructurePercent();
 
     const percentDisplay = document.getElementById('ficha-status-percent');
     const statusBar = document.getElementById('ficha-status-bar');
     const fill = statusBar ? statusBar.querySelector('.fill') : null;
+    const expedienteInput = document.getElementById('ficha-expediente');
 
     if (percentDisplay) percentDisplay.textContent = percent + '%';
     if (statusBar) {
@@ -718,6 +1066,10 @@ function updateStatusPreview() {
         statusBar.className = 'status-bar ' + statusClass;
     }
     if (fill) fill.style.width = percent + '%';
+    
+    // Actualizar el campo de expediente para reflejar el cálculo automático
+    // Esto evita la inconsistencia donde el usuario escribe un valor que es ignorado
+    if (expedienteInput) expedienteInput.value = percent;
 }
 
 // ---- Leaflet Map ----
@@ -801,12 +1153,43 @@ async function handleSaveFicha() {
         return;
     }
 
+    const btnSave = document.getElementById('btn-ficha-save');
+    const originalBtnText = btnSave.innerHTML;
+
+    // 1. Prevenir múltiples clics
+    btnSave.disabled = true;
+    btnSave.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
+
     const folio = document.getElementById('ficha-folio').value.trim();
     const sifais = document.getElementById('ficha-sifais').value.trim();
 
     if (!folio || !sifais) {
         showToast('Folio y SIFAIS son obligatorios', 'error');
+        btnSave.disabled = false;
+        btnSave.innerHTML = originalBtnText;
         return;
+    }
+
+    // Validación de duplicados (solo para nuevas fichas)
+    if (!currentFichaId) {
+        try {
+            const { data: existingFichas, error } = await db()
+                .from('fichas')
+                .select('id')
+                .or(`folio.eq.${folio},sifais.eq.${sifais}`);
+
+            if (error) throw error;
+
+            if (existingFichas && existingFichas.length > 0) {
+                showToast('Error: Ya existe una ficha con ese Folio o SIFAIS', 'error');
+                btnSave.disabled = false;
+                btnSave.innerHTML = originalBtnText;
+                return;
+            }
+        } catch (err) {
+            console.error('Error verificando duplicados:', err);
+            // Continuar con el guardado si falla la verificación, pero loguear el error
+        }
     }
 
     let lat, lng;
@@ -825,33 +1208,9 @@ async function handleSaveFicha() {
         lng = null;
     }
 
-    // Obtener valor del campo expediente (porcentaje de avance escrito por el usuario)
-    const expedienteValue = parseFloat(document.getElementById('ficha-expediente').value);
-
     // Calcular porcentaje basado en infraestructura instalada (automático)
-    // Lógica: Cada punto vale 20%
-    // 1. Topografía (texto): Si tiene contenido -> 20%
-    // 2. Mecánica (texto): Si tiene contenido -> 20%
-    // 3. Gas (número): Si > 49 -> 20%
-    // 4. Agua (número): Si > 49 -> 20%
-    // 5. Drenaje (número): Si > 49 -> 20%
-
-    const topografiaVal = document.getElementById('ficha-topografia').value.trim();
-    const mecanicaVal = document.getElementById('ficha-mecanica-text').value.trim();
-    const gasVal = parseInt(document.getElementById('ficha-gas').value) || 0;
-    const aguaVal = parseInt(document.getElementById('ficha-agua').value) || 0;
-    const drenajeVal = parseInt(document.getElementById('ficha-drenaje').value) || 0;
-
-    let autoPercent = 0;
-
-    if (topografiaVal.toLowerCase() === 'si') autoPercent += 20;
-    if (mecanicaVal.toLowerCase() === 'si') autoPercent += 20;
-    if (gasVal > 49) autoPercent += 20;
-    if (aguaVal > 49) autoPercent += 20;
-    if (drenajeVal > 49) autoPercent += 20;
-
-    // El avance se calcula SIEMPRE por los 5 puntos, sin importar el valor del expediente
-    const statusPercent = autoPercent;
+    // Usamos la función extraída para evitar duplicación
+    const statusPercent = calculateInfrastructurePercent();
 
     let fichaData;
 
@@ -882,6 +1241,7 @@ async function handleSaveFicha() {
             longitud: document.getElementById('ficha-longitud').value.trim(),
             costo_parametrico: document.getElementById('ficha-costo-parametrico').value.trim(),
             origen_recursos: document.getElementById('ficha-origen-recursos').value.trim(),
+            anio: document.getElementById('ficha-anio').value ? parseInt(document.getElementById('ficha-anio').value) : null,
             lat, lng,
             calle: document.getElementById('ficha-calle').value.trim(),
             topografia: document.getElementById('ficha-topografia').value.trim(),
@@ -920,13 +1280,72 @@ async function handleSaveFicha() {
             throw result.error;
         }
 
-        showToast(currentFichaId ? 'Ficha actualizada' : 'Ficha creada', 'success');
-        closeModal('modal-ficha');
-        loadFichas(currentUser.role + '-fichas-grid');
+        // Obtener el ID de la ficha creada o actualizada
+        const fichaId = currentFichaId || result.data[0].id;
+
+        // Subir PDFs si hay archivos seleccionados (creación o edición)
+        const pdfInput = document.getElementById('ficha-pdf-input');
+        if (pdfInput && pdfInput.files.length > 0) {
+            await uploadAndOptimizePDFs(fichaId, pdfInput.files);
+        }
+
+        // Mostrar animación de éxito
+        showSuccessAnimation();
+
+        // Cerrar modal después de un pequeño retraso para ver la animación
+        setTimeout(() => {
+            closeModal('modal-ficha');
+            loadFichas(currentUser.role + '-fichas-grid');
+        }, 1500); // 1.5 segundos para ver la animación
+
     } catch (err) {
         console.error('Error al guardar:', err);
         showToast('Error: ' + err.message, 'error');
+        // Re-habilitar el botón en caso de error
+        btnSave.disabled = false;
+        btnSave.innerHTML = originalBtnText;
     }
+}
+
+// ---- Success Animation ----
+function showSuccessAnimation() {
+    // Crear overlay temporal para la animación
+    const overlay = document.createElement('div');
+    overlay.id = 'success-overlay';
+    overlay.style.position = 'fixed';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.width = '100%';
+    overlay.style.height = '100%';
+    overlay.style.background = 'rgba(0, 0, 0, 0.5)';
+    overlay.style.zIndex = '9999';
+    overlay.style.display = 'flex';
+    overlay.style.alignItems = 'center';
+    overlay.style.justifyContent = 'center';
+
+    const container = document.createElement('div');
+    container.id = 'success-animation-container';
+    container.style.width = '200px';
+    container.style.height = '200px';
+
+    overlay.appendChild(container);
+    document.body.appendChild(overlay);
+
+    // Cargar animación success.json
+    lottie.loadAnimation({
+        container: container,
+        renderer: 'svg',
+        loop: false,
+        autoplay: true,
+        path: 'assets/success.json'
+    });
+
+    // Eliminar overlay después de que la animación termine (44 frames a 30fps = ~1.5s)
+    setTimeout(() => {
+        if (overlay.parentNode) {
+            overlay.parentNode.removeChild(overlay);
+        }
+    }, 2000);
 }
 
 // ---- Load Fichas ----
@@ -1019,6 +1438,7 @@ async function openFichaDetail(fichaId) {
             <div class="detail-item"><div class="label">Folio</div><div class="value">${ficha.folio}</div></div>
             <div class="detail-item"><div class="label">SIFAIS</div><div class="value">${ficha.sifais}</div></div>
             <div class="detail-item"><div class="label">Fecha Creación</div><div class="value">${fechaCreacion}</div></div>
+            <div class="detail-item"><div class="label">Año</div><div class="value">${ficha.anio || 'N/A'}</div></div>
             <div class="detail-item"><div class="label">Tipo</div><div class="value">${ficha.tipo || 'N/A'}</div></div>
             <div class="detail-item full-width"><div class="label">Obra/Proyecto</div><div class="value">${ficha.concepto || 'N/A'}</div></div>
             <div class="detail-item"><div class="label">M²</div><div class="value">${ficha.m2 || 'N/A'}</div></div>
@@ -1046,6 +1466,12 @@ async function openFichaDetail(fichaId) {
             <div class="detail-item"><div class="label">Tiempo Ejecución</div><div class="value">${ficha.tiempo_ejecucion || 'N/A'}</div></div>
             <div class="detail-item"><div class="label">Latitud</div><div class="value">${ficha.lat || 'N/A'}</div></div>
             <div class="detail-item"><div class="label">Longitud</div><div class="value">${ficha.lng || 'N/A'}</div></div>
+            
+            <!-- Sección de PDFs anexados -->
+            <div class="detail-item full-width" id="pdfs-section" style="display: none;">
+                <div class="label">Documentos Anexos (PDF)</div>
+                <div class="value" id="pdfs-list"></div>
+            </div>
         </div>
     `;
 
@@ -1072,10 +1498,72 @@ async function openFichaDetail(fichaId) {
     }
 
     // Comment Form Visibility
-    document.getElementById('comment-form').style.display = currentUser.role === 'revisor' ? 'block' : 'none';
+    const commentForm = document.getElementById('comment-form');
+    if (commentForm) {
+        // Todos los roles pueden comentar (Admin, Revisor, Visor)
+        commentForm.style.display = 'block';
+    }
     document.getElementById('btn-submit-comment').dataset.fichaId = fichaId;
 
     await loadComments(fichaId);
+
+    // Load PDFs attached to this ficha
+    try {
+        const [archivosResult, usuariosResult] = await Promise.all([
+            db().from('archivos_ficha').select('*').eq('ficha_id', fichaId).order('created_at', { ascending: false }),
+            db().from('usuarios').select('id, username')
+        ]);
+
+        const archivos = archivosResult.data;
+        const error = archivosResult.error;
+        const usuarios = usuariosResult.data || [];
+
+        if (error) throw error;
+
+        // Crear un mapa de usuarios para acceso rápido (usando username)
+        const userMap = new Map(usuarios.map(u => [u.id, u.username]));
+        console.log('Usuarios cargados para mapeo (detalle):', userMap);
+
+        if (archivos && archivos.length > 0) {
+            const pdfSection = document.getElementById('pdfs-section');
+            const pdfList = document.getElementById('pdfs-list');
+
+            pdfSection.style.display = 'block';
+
+            let pdfHTML = '<div class="pdf-detail-list">';
+            archivos.forEach(arch => {
+                const sizeKB = (arch.peso_optimizado / 1024).toFixed(1);
+                const userName = arch.usuario_id ? (userMap.get(arch.usuario_id) || 'Usuario desconocido') : 'Usuario desconocido';
+                const uploadDate = new Date(arch.created_at).toLocaleDateString('es-ES', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+                pdfHTML += `
+                    <div class="pdf-detail-item">
+                        <div class="pdf-info">
+                            <i class="fas fa-file-pdf"></i>
+                            <div class="pdf-details">
+                                <span class="pdf-name">${arch.nombre_original}</span>
+                                <span class="pdf-meta">${userName} • ${uploadDate} • ${sizeKB} KB</span>
+                            </div>
+                        </div>
+                        <button class="btn btn-sm btn-secondary" onclick="downloadPDF('${arch.nombre_optimizado}')">
+                            <i class="fas fa-download"></i>
+                        </button>
+                    </div>
+                `;
+            });
+            pdfHTML += '</div>';
+
+            pdfList.innerHTML = pdfHTML;
+        }
+    } catch (err) {
+        console.error('Error loading PDFs:', err);
+    }
+
     openModal('modal-ficha-detail');
 
     // Initialize Detail Map
@@ -1087,6 +1575,26 @@ function editFicha(fichaId, mode) {
     if (!ficha) return;
     closeModal('modal-ficha-detail');
     setTimeout(() => openFichaModal(ficha, mode), 300);
+}
+
+function downloadPDF(fileName) {
+    const { data, error } = supabaseClient.storage
+        .from('archivos_ficha')
+        .getPublicUrl(fileName);
+
+    if (error) {
+        console.error('Error obteniendo URL:', error);
+        showToast('Error al descargar archivo', 'error');
+        return;
+    }
+
+    // Crear enlace temporal para descargar
+    const link = document.createElement('a');
+    link.href = data.publicUrl;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 }
 
 function initDetailMap(ficha) {
@@ -1128,15 +1636,21 @@ async function loadComments(fichaId) {
         }
 
         const tipoLabels = { aprobacion: 'Aprobación', revision: 'Revisión', datos_incorrectos: 'Datos Incorrectos' };
-        container.innerHTML = comments.map(c => `
-            <div class="comment-card tipo-${c.tipo}">
-                <div class="comment-meta">
-                    <span>${c.usuarios?.nombre || 'Usuario'} - ${new Date(c.created_at).toLocaleString('es-MX')}</span>
-                    <span class="comment-tipo tipo-${c.tipo}">${tipoLabels[c.tipo]}</span>
+        container.innerHTML = comments.map(c => {
+            const isCurrentUser = c.usuario_id === currentUser.id;
+            const alignmentClass = isCurrentUser ? 'comment-right' : 'comment-left';
+            const colorClass = isCurrentUser ? 'comment-current-user' : 'comment-other-user';
+            
+            return `
+                <div class="comment-card tipo-${c.tipo} ${alignmentClass} ${colorClass}">
+                    <div class="comment-meta">
+                        <span>${c.usuarios?.nombre || 'Usuario'} - ${new Date(c.created_at).toLocaleString('es-MX')}</span>
+                        <span class="comment-tipo tipo-${c.tipo}">${tipoLabels[c.tipo]}</span>
+                    </div>
+                    <div>${c.texto}</div>
                 </div>
-                <div>${c.texto}</div>
-            </div>
-        `).join('');
+            `;
+        }).join('');
 
     } catch (err) {
         container.innerHTML = '<p>Error al cargar comentarios</p>';
@@ -1197,13 +1711,12 @@ async function openReport() {
 
         function tryLoadImage(index) {
             if (index >= possiblePaths.length) {
-                console.log('No se pudo cargar la imagen de fondo con ninguna ruta, usando color de respaldo');
+                console.log('Nose pudo cargar la imagen,l utilizams el color balnco como respaldo');
                 reportContainer.style.background = '#f8f9fa';
                 return;
             }
-
             imagePath = possiblePaths[index];
-            console.log(`Intentando cargar imagen: ${imagePath}`);
+            console.log(`Estamos intentando cargar la imagen, espera un momento: ${imagePath}`);
 
             const img = new Image();
             img.onload = function () {
@@ -1212,7 +1725,7 @@ async function openReport() {
                 imgLoaded = true;
             };
             img.onerror = function () {
-                console.log(`Falló la carga con ruta: ${imagePath}`);
+                console.log(`Hubo un error al cargar la ruta: ${imagePath}`);
                 tryLoadImage(index + 1);
             };
             img.src = imagePath;
@@ -1232,11 +1745,8 @@ async function openReport() {
             else if (f.status_percent >= 80) rowClass = 'estado-proceso';
             else rowClass = 'estado-rezagado';
 
-            // Determinar tipo (simplificado)
-            let tipo = 'N/A';
-            if (f.via_ciclista) tipo = 'Ciclovía';
-            else if (f.alumbrado) tipo = 'Alumbrado';
-            else if (f.mecanica || f.gas || f.agua || f.drenaje) tipo = 'Infraestructura';
+            // Obtener tipo del campo correspondiente
+            let tipo = f.tipo || 'N/A';
 
             // Determinar color del círculo de expediente
             const expedienteValue = f.expediente || 0;
@@ -1254,11 +1764,11 @@ async function openReport() {
                 <td>${f.calle || 'N/A'}</td>
                 <td>${f.topografia ? 'Si' : 'No'}</td>
                 <td>${f.mecanica ? 'Si' : 'No'}</td>
-                <td>${f.via_ciclista ? 'Si' : 'No'}</td>
+                <td>${f.concepto || 'N/A'}</td>
             </tr>`;
         }).join('');
     } catch (err) {
-        tbody.innerHTML = '<tr><td colspan="6" style="padding:20px; text-align:center;">Error al cargar reporte</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" style="padding:20px; text-align:center;">Error inesperado al cargar el reporte</td></tr>';
     }
 }
 
@@ -1268,10 +1778,6 @@ function printReport() {
     const rows = Array.from(tbody.querySelectorAll('tr'));
 
     const w = window.open('', '_blank');
-
-    // Configurar estilos
-    // Usar tamaño de papel basado en las dimensiones exactas de la plantilla (1280x720 píxeles)
-    // 1280 píxeles = 8.89 pulgadas a 144 DPI, 720 píxeles = 5 pulgadas a 144 DPI
     const styles = `
     <style>
         @page {
@@ -1339,6 +1845,11 @@ function printReport() {
             padding: 8px 10px;
             text-align: center;
         }
+        td:nth-child(6) {
+            text-align: left;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
         th {
             background-color: #7d2447;
             color: white;
@@ -1389,7 +1900,7 @@ function printReport() {
                     <th>Ubicación</th>
                     <th>Topografía</th>
                     <th>Mecánica</th>
-                    <th>Vía Ciclista</th>
+                    <th>Obra/Proyecto</th>
                 </tr>
             </thead>
             <tbody>
@@ -1502,7 +2013,7 @@ function exportToPowerPoint() {
                     <th>Ubicación</th>
                     <th>Topografía</th>
                     <th>Mecánica</th>
-                    <th>Vía Ciclista</th>
+                    <th>Obra/Proyecto</th>
                 </tr>
             </thead>
             <tbody>
@@ -1539,6 +2050,12 @@ function exportToPDF(buttonId) {
 
         if (fichas.length === 0) {
             showToast('No hay fichas para exportar', 'warning');
+            return;
+        }
+
+        // Verificar si jsPDF está cargado
+        if (!window.jspdf) {
+            showToast('La librería PDF no está cargada', 'error');
             return;
         }
 
@@ -1931,6 +2448,69 @@ function showToast(message, type = 'info') {
     setTimeout(() => toast.remove(), 3000);
 }
 
+// ---- Realtime (WebSockets) ----
+let realtimeChannel = null;
+
+function initRealtime() {
+    if (!supabaseClient) return;
+
+    // Suscribirse al canal de Realtime
+    // Usamos el channel 'realtime' para escuchar cambios en la BD
+    realtimeChannel = supabaseClient
+        .channel('realtime')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'fichas' }, (payload) => {
+            handleFichaChange(payload);
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'comentarios' }, (payload) => {
+            handleComentarioChange(payload);
+        })
+        .subscribe((status) => {
+            if (status === 'SUBSCRIBED') {
+                console.log('Conectado a Realtime');
+            }
+        });
+}
+
+function handleFichaChange(payload) {
+    console.log('Cambio en fichas detectado:', payload);
+    
+    const role = currentUser ? currentUser.role : null;
+    
+    // No recargar si el modal de edición de ficha está abierto
+    const modalFicha = document.getElementById('modal-ficha');
+    if (modalFicha && modalFicha.classList.contains('active')) {
+        console.log('Modal de edición abierto, ignorando actualización de grid');
+        return;
+    }
+
+    // Si soy Revisor o Visor, recargar el grid correspondiente
+    if (role === 'revisor') {
+        loadFichas('revisor-fichas-grid');
+    } else if (role === 'visor') {
+        loadFichas('visor-fichas-grid');
+    }
+}
+
+function handleComentarioChange(payload) {
+    console.log('Cambio en comentarios detectado:', payload);
+    
+    // Si es una inserción (nuevo comentario)
+    if (payload.eventType === 'INSERT') {
+        const role = currentUser ? currentUser.role : null;
+        
+        // Si soy Admin, actualizar el contador de mensajes
+        if (role === 'admin') {
+            loadCommentsCount();
+            
+            // Si el dropdown de mensajes está abierto, recargarlo
+            const dropdown = document.getElementById('messages-dropdown');
+            if (dropdown && dropdown.style.display === 'block') {
+                loadCommentsDropdown();
+            }
+        }
+    }
+}
+
 // Global functions for onclick handlers
 window.openFichaDetail = openFichaDetail;
 window.editFicha = editFicha;
@@ -1940,6 +2520,7 @@ window.closeTutorial = closeTutorial;
 window.searchFichas = searchFichas;
 window.clearSearch = clearSearch;
 window.toggleMessagesDropdown = toggleMessagesDropdown;
+window.deletePDF = deletePDF;
 
 // Search Functions
 function searchFichas(profile) {
@@ -1960,12 +2541,11 @@ function searchFichas(profile) {
         filteredFichas = allFichas.filter(f => f.folio && f.folio.toLowerCase().includes(searchTerm));
     } else if (searchType === 'sifais') {
         filteredFichas = allFichas.filter(f => f.sifais && f.sifais.toLowerCase().includes(searchTerm));
-    } else if (searchType === 'date') {
-        // Buscar por fecha (created_at)
+    } else if (searchType === 'year') {
+        // Buscar por año (campo anio)
         filteredFichas = allFichas.filter(f => {
-            if (!f.created_at) return false;
-            const fecha = new Date(f.created_at).toISOString().split('T')[0]; // YYYY-MM-DD
-            return fecha.includes(searchTerm);
+            if (!f.anio) return false;
+            return f.anio.toString().includes(searchTerm);
         });
     }
 
@@ -1977,7 +2557,7 @@ function searchFichas(profile) {
                 <div>Folio</div>
                 <div>SIFAIS</div>
                 <div>Obra / Tipo</div>
-                <div>Fecha</div>
+                <div>Año</div>
                 <div>Avance</div>
                 <div>Acciones</div>
             </div>
@@ -2004,7 +2584,7 @@ function renderFichas(fichas, gridId) {
             <div>Folio</div>
             <div>SIFAIS</div>
             <div>Obra / Tipo</div>
-            <div>Fecha</div>
+            <div>Año</div>
             <div>Avance</div>
             <div>Acciones</div>
         </div>
@@ -2036,7 +2616,7 @@ function renderFichas(fichas, gridId) {
                 ${f.concepto || 'Sin concepto'}
                 <span class="tipo-badge">${tipoDisplay}</span>
             </div>
-            <div class="fecha-creacion">${fechaDisplay}</div>
+            <div class="anio-cell">${f.anio || '-'}</div>
             <div class="status-cell">
                 <div class="status-percent">${f.status_percent}%</div>
                 <div class="status-bar">
@@ -2072,13 +2652,26 @@ function toggleMessagesDropdown() {
     const dropdownElement = document.getElementById('messages-dropdown');
     if (dropdownElement) {
         console.log('Mostrando dropdown:', commentsDropdownOpen);
-        dropdownElement.style.display = commentsDropdownOpen ? 'block' : 'none';
+        if (commentsDropdownOpen) {
+            dropdownElement.classList.add('open');
+        } else {
+            dropdownElement.classList.remove('open');
+        }
 
         // Si se está abriendo, cargar los comentarios y ocultar el badge
         if (commentsDropdownOpen) {
             console.log('Cargando comentarios en dropdown...');
             // Ocultar el badge cuando se abren los mensajes
-            const badge = document.getElementById('badge-comments');
+            const role = currentUser ? currentUser.role : null;
+            let badge;
+            if (role === 'visor') {
+                badge = document.getElementById('badge-comments-visor');
+            } else if (role === 'revisor') {
+                badge = document.getElementById('badge-comments-revisor');
+            } else {
+                badge = document.getElementById('badge-comments');
+            }
+            
             if (badge) {
                 badge.style.display = 'none';
                 badge.textContent = '0';
@@ -2092,9 +2685,19 @@ function toggleMessagesDropdown() {
 
 function createMessagesDropdown() {
     console.log('createMessagesDropdown iniciada');
-    const btnMessages = document.getElementById('btn-messages-admin');
+    
+    // Determinar el botón según el rol del usuario
+    let btnMessages;
+    if (currentUser && currentUser.role === 'visor') {
+        btnMessages = document.getElementById('btn-messages-visor');
+    } else if (currentUser && currentUser.role === 'revisor') {
+        btnMessages = document.getElementById('btn-messages-revisor');
+    } else {
+        btnMessages = document.getElementById('btn-messages-admin');
+    }
+    
     if (!btnMessages) {
-        console.log('No se encontró btn-messages-admin');
+        console.log('No se encontró el botón de mensajes para el rol:', currentUser ? currentUser.role : 'desconocido');
         return;
     }
 
@@ -2109,20 +2712,23 @@ function createMessagesDropdown() {
     const dropdown = document.createElement('div');
     dropdown.id = 'messages-dropdown';
     dropdown.className = 'comments-dropdown';
-    dropdown.style.display = 'none';
     dropdown.innerHTML = '<div class="comments-dropdown-header">Cargando...</div>';
 
-    btnContainer.style.position = 'relative';
-    btnContainer.appendChild(dropdown);
+    // No necesitamos position: relative en el contenedor del botón
+    // ya que el dropdown es fixed
+    document.body.appendChild(dropdown);
 
     console.log('Dropdown creado y agregado al DOM');
 
     // Close dropdown when clicking outside
     document.addEventListener('click', function (e) {
-        const btnMessages = document.getElementById('btn-messages-admin');
+        const btnMessagesAdmin = document.getElementById('btn-messages-admin');
+        const btnMessagesVisor = document.getElementById('btn-messages-visor');
+        const btnMessages = btnMessagesAdmin || btnMessagesVisor;
+        
         if (btnMessages && !btnMessages.contains(e.target) && !dropdown.contains(e.target)) {
             commentsDropdownOpen = false;
-            dropdown.style.display = 'none';
+            dropdown.classList.remove('open');
         }
     });
 }
@@ -2144,8 +2750,21 @@ async function loadCommentsCount() {
         const count = comentarios ? comentarios.length : 0;
         const badge = document.getElementById('badge-comments');
 
-        if (badge && count > 0) {
-            badge.textContent = count;
+        // Lógica de burbuja: Solo mostrar si hay comentarios NO vistos
+        let unseenCount = 0;
+        const lastSeenTimestamp = localStorage.getItem('lastSeenCommentTimestamp');
+
+        if (comentarios && comentarios.length > 0) {
+            const latestComment = comentarios[0]; // El más reciente (ordenado por fecha DESC)
+            
+            if (!lastSeenTimestamp || new Date(latestComment.created_at) > new Date(lastSeenTimestamp)) {
+                unseenCount = count; // Hay comentarios nuevos
+            }
+        }
+
+        // Mostrar burbuja solo si hay comentarios nuevos
+        if (badge && unseenCount > 0) {
+            badge.textContent = unseenCount;
             badge.style.display = 'flex';
         } else if (badge) {
             badge.style.display = 'none';
@@ -2159,9 +2778,58 @@ async function loadCommentsCount() {
     }
 }
 
+async function loadCommentsCountVisor() {
+    return loadCommentsCountRevisor();
+}
+
+async function loadCommentsCountRevisor() {
+    try {
+        // Calcular fecha límite (hace 2 días)
+        const twoDaysAgo = new Date();
+        twoDaysAgo.setDate(twoDaysAgo.getDate() - RETENTION_DAYS);
+        twoDaysAgo.setHours(0, 0, 0, 0);
+
+        const { data: comentarios, error } = await db()
+            .from('comentarios')
+            .select('*, fichas(folio), usuarios(nombre)')
+            .gte('created_at', twoDaysAgo.toISOString());
+
+        if (error) throw error;
+
+        const count = comentarios ? comentarios.length : 0;
+        const badge = document.getElementById('badge-comments-revisor');
+
+        // Lógica de burbuja: Solo mostrar si hay comentarios NO vistos
+        let unseenCount = 0;
+        const lastSeenTimestamp = localStorage.getItem('lastSeenCommentTimestamp');
+
+        if (comentarios && comentarios.length > 0) {
+            const latestComment = comentarios[0]; // El más reciente
+            
+            if (!lastSeenTimestamp || new Date(latestComment.created_at) > new Date(lastSeenTimestamp)) {
+                unseenCount = count; // Hay comentarios nuevos
+            }
+        }
+
+        // Mostrar burbuja solo si hay comentarios nuevos
+        if (badge && unseenCount > 0) {
+            badge.textContent = unseenCount;
+            badge.style.display = 'flex';
+        } else if (badge) {
+            badge.style.display = 'none';
+        }
+
+        // Load comments into dropdown
+        loadCommentsDropdown(comentarios);
+
+    } catch (err) {
+        console.error('Error loading comments for revisor:', err);
+    }
+}
+
 async function loadCommentsDropdown(comentarios = null) {
     console.log('loadCommentsDropdown iniciada');
-    const dropdown = document.getElementById('messages-dropdown');
+    let dropdown = document.getElementById('messages-dropdown');
     if (!dropdown) {
         console.log('No se encontró dropdown, creando...');
         createMessagesDropdown();
@@ -2184,7 +2852,7 @@ async function loadCommentsDropdown(comentarios = null) {
 
             const { data, error } = await db()
                 .from('comentarios')
-                .select('*, fichas(folio), usuarios(nombre)')
+                .select('*, fichas(folio), usuarios(nombre, role)') // Agregamos role aquí
                 .gte('created_at', twoDaysAgo.toISOString())
                 .order('created_at', { ascending: false });
 
@@ -2206,17 +2874,57 @@ async function loadCommentsDropdown(comentarios = null) {
         </div>
     `;
 
+    // Variable para contar los mostrados y arrays filtrados
+    let totalMostrados = 0;
+    let filteredComments = [];
+    let filteredFallbackComments = [];
+    let hasJoinedData = false;
+
     if (!comentarios || comentarios.length === 0) {
         html += `<div class="comment-item" style="text-align: center; color: #666;">No hay comentarios nuevos</div>`;
     } else {
         console.log('Generando HTML para', comentarios.length, 'comentarios');
 
+        // Obtener el rol del usuario actual
+        const currentRole = currentUser ? currentUser.role : null;
+
+        // Definir qué roles son visibles para el rol actual
+        // Admin: ve Revisor y Visor
+        // Revisor: ve Admin y Visor
+        // Visor: ve Admin y Revisor
+        let allowedRoles = [];
+        if (currentRole === 'admin') {
+            allowedRoles = ['revisor', 'visor'];
+        } else if (currentRole === 'revisor') {
+            allowedRoles = ['admin', 'visor'];
+        } else if (currentRole === 'visor') {
+            allowedRoles = ['admin', 'revisor'];
+        } else {
+            // Si no hay rol o es desconocido, no mostramos nada por seguridad
+            allowedRoles = [];
+        }
+
+        // Filtrar comentarios basados en el rol del autor
+        filteredComments = comentarios.filter(comment => {
+            // Verificar si el comentario tiene datos de usuario unidos
+            if (comment.usuarios && comment.usuarios.role) {
+                return allowedRoles.includes(comment.usuarios.role);
+            }
+            // Si no tiene datos unidos (fallback), no lo mostramos en el dropdown
+            // (podríamos hacer una segunda consulta para obtener el rol, pero por simplicidad lo omitimos aquí)
+            return false;
+        });
+
         // Check if comentarios have joined data (fichas, usuarios)
-        const hasJoinedData = comentarios.length > 0 && comentarios[0].fichas && comentarios[0].usuarios;
+        // Solo si hay comentarios filtrados
+        if (filteredComments.length > 0) {
+            hasJoinedData = filteredComments[0].fichas && filteredComments[0].usuarios;
+        }
 
         if (hasJoinedData) {
             // Use joined data
-            comentarios.slice(0, 10).forEach(comment => {
+            totalMostrados = filteredComments.length; // Contamos todos los filtrados, no solo los primeros 10
+            filteredComments.slice(0, 10).forEach(comment => {
                 const tipoClass = `comment-type-${comment.tipo || 'revision'}`;
                 const tipoLabel = comment.tipo === 'aprobacion' ? 'Aprobación' :
                     comment.tipo === 'revision' ? 'Revisión' : 'Datos Incorrectos';
@@ -2238,6 +2946,7 @@ async function loadCommentsDropdown(comentarios = null) {
                 `;
             });
         } else {
+            hasJoinedData = false; // En el fallback no tenemos datos unidos
             // Fetch all fichas and usuarios for mapping (fallback)
             try {
                 const { data: fichas, error: fichasError } = await db()
@@ -2246,23 +2955,34 @@ async function loadCommentsDropdown(comentarios = null) {
 
                 const { data: usuarios, error: usuariosError } = await db()
                     .from('usuarios')
-                    .select('id, nombre');
+                    .select('id, nombre, role');
 
                 if (fichasError) console.error('Error fetching fichas:', fichasError);
                 if (usuariosError) console.error('Error fetching usuarios:', usuariosError);
 
                 // Create maps for quick lookup
-                const fichaMap = new Map(fichas?.map(f => [f.id, f.folio]) || []);
+                const fichaLookupMap = new Map(fichas?.map(f => [f.id, f.folio]) || []);
                 const usuarioMap = new Map(usuarios?.map(u => [u.id, u.nombre]) || []);
+                const usuarioRoleMap = new Map(usuarios?.map(u => [u.id, u.role]) || []);
 
-                comentarios.slice(0, 10).forEach(comment => {
+                // Aplicar filtro de roles también en el fallback
+                filteredFallbackComments = comentarios.filter(comment => {
+                    const userRole = usuarioRoleMap.get(comment.usuario_id);
+                    if (userRole && allowedRoles.includes(userRole)) {
+                        return true;
+                    }
+                    return false;
+                });
+
+                totalMostrados = filteredFallbackComments.length;
+                filteredFallbackComments.slice(0, 10).forEach(comment => {
                     const tipoClass = `comment-type-${comment.tipo || 'revision'}`;
                     const tipoLabel = comment.tipo === 'aprobacion' ? 'Aprobación' :
                         comment.tipo === 'revision' ? 'Revisión' : 'Datos Incorrectos';
                     const fecha = new Date(comment.created_at).toLocaleDateString('es-ES');
                     const hora = new Date(comment.created_at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
                     const usuarioNombre = usuarioMap.get(comment.usuario_id) || 'Usuario desconocido';
-                    const folio = fichaMap.get(comment.ficha_id) || 'N/A';
+                    const folio = fichaLookupMap.get(comment.ficha_id) || 'N/A';
 
                     html += `
                         <div class="comment-item" onclick="openFichaDetail('${comment.ficha_id || ''}')">
@@ -2278,30 +2998,201 @@ async function loadCommentsDropdown(comentarios = null) {
                 });
             } catch (err) {
                 console.error('Error fetching data for comments:', err);
-                // Fallback to basic data if fetch fails
-                comentarios.slice(0, 10).forEach(comment => {
-                    const tipoClass = `comment-type-${comment.tipo || 'revision'}`;
-                    const tipoLabel = comment.tipo === 'aprobacion' ? 'Aprobación' :
-                        comment.tipo === 'revision' ? 'Revisión' : 'Datos Incorrectos';
-                    const fecha = new Date(comment.created_at).toLocaleDateString('es-ES');
-                    const hora = new Date(comment.created_at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-
-                    html += `
-                        <div class="comment-item" onclick="openFichaDetail('${comment.ficha_id || ''}')">
-                            <span class="comment-type ${tipoClass}">${tipoLabel}</span>
-                            <div>${comment.texto || 'Sin texto'}</div>
-                            <div class="comment-details">
-                                <strong>Folio:</strong> N/A | 
-                                <strong>Usuario:</strong> Usuario | 
-                                <strong>Fecha:</strong> ${fecha} ${hora}
-                            </div>
-                        </div>
-                    `;
-                });
+                // No podemos filtrar por rol sin datos de usuario, no mostramos comentarios por seguridad
+                html += `<div class="comment-item" style="text-align: center; color: #666;">Error al cargar comentarios</div>`;
             }
         }
     }
 
     dropdown.innerHTML = html;
-    console.log('Dropdown actualizado con', comentarios ? comentarios.length : 0, 'comentarios');
+    console.log('Dropdown actualizado con', totalMostrados, 'comentarios (filtrados por rol)');
+
+    // Marcar los comentarios como leídos guardando el timestamp del más reciente
+    // Buscamos el comentario con fecha más reciente entre los filtrados
+    let latestFilteredComment = null;
+    
+    if (hasJoinedData && filteredComments.length > 0) {
+        latestFilteredComment = filteredComments[0]; // Ya están ordenados por fecha descendente
+    } else if (filteredFallbackComments && filteredFallbackComments.length > 0) {
+        latestFilteredComment = filteredFallbackComments[0];
+    }
+
+    if (latestFilteredComment) {
+        localStorage.setItem('lastSeenCommentTimestamp', latestFilteredComment.created_at);
+        console.log('Marcado como leído hasta:', latestFilteredComment.created_at);
+    }
+}
+
+// ---- Load Existing PDFs ----
+async function loadExistingPDFs(fichaId) {
+    console.log('loadExistingPDFs called with fichaId:', fichaId);
+    const existingPdfsSection = document.getElementById('existing-pdfs-section');
+    const existingPdfsList = document.getElementById('existing-pdfs-list');
+    
+    if (!existingPdfsSection || !existingPdfsList) return;
+
+    try {
+        const [archivosResult, usuariosResult] = await Promise.all([
+            db().from('archivos_ficha').select('*').eq('ficha_id', fichaId).order('created_at', { ascending: false }),
+            db().from('usuarios').select('id, username')
+        ]);
+
+        const archivos = archivosResult.data;
+        const error = archivosResult.error;
+        const usuarios = usuariosResult.data || [];
+
+        if (error) throw error;
+
+        // Crear un mapa de usuarios para acceso rápido (usando username)
+        const userMap = new Map(usuarios.map(u => [u.id, u.username]));
+        console.log('Usuarios cargados para mapeo (edición):', userMap);
+
+        if (archivos && archivos.length > 0) {
+            existingPdfsSection.style.display = 'block';
+            
+            let pdfHTML = '<div class="existing-pdf-list">';
+            archivos.forEach(arch => {
+                const sizeKB = (arch.peso_optimizado / 1024).toFixed(1);
+                const userName = arch.usuario_id ? (userMap.get(arch.usuario_id) || 'Usuario desconocido') : 'Usuario desconocido';
+                const uploadDate = new Date(arch.created_at).toLocaleDateString('es-ES', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric'
+                });
+                pdfHTML += `
+                    <div class="existing-pdf-item" id="pdf-item-${arch.id}">
+                        <div class="pdf-info">
+                            <i class="fas fa-file-pdf"></i>
+                            <div class="pdf-details">
+                                <span class="pdf-name">${arch.nombre_original}</span>
+                                <span class="pdf-meta">${userName} • ${uploadDate} • ${sizeKB} KB</span>
+                            </div>
+                        </div>
+                        <div class="pdf-actions">
+                            <button class="btn btn-sm btn-secondary" onclick="downloadPDF('${arch.nombre_optimizado}')">
+                                <i class="fas fa-download"></i>
+                            </button>
+                            <button class="btn btn-sm btn-danger" onclick="deletePDF('${arch.id}', '${arch.nombre_optimizado}', '${fichaId}')">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+            pdfHTML += '</div>';
+            
+            existingPdfsList.innerHTML = pdfHTML;
+        } else {
+            existingPdfsSection.style.display = 'none';
+        }
+    } catch (err) {
+        console.error('Error loading existing PDFs:', err);
+        existingPdfsSection.style.display = 'none';
+    }
+}
+
+// ---- Delete PDF ----
+async function deletePDF(archivoId, fileName, fichaId) {
+    const message = `¿Estás seguro de que deseas eliminar este archivo PDF?\n\nNOTA: Esta acción es permanente.`;
+
+    const confirmed = await showDeleteNotification(message);
+
+    if (!confirmed) {
+        return;
+    }
+
+    try {
+        // 1. Eliminar el archivo de Supabase Storage
+        const { error: storageError } = await supabaseClient.storage
+            .from('archivos_ficha')
+            .remove([fileName]);
+
+        if (storageError) throw storageError;
+
+        // 2. Eliminar el registro de la tabla archivos_ficha
+        const { error: dbError } = await db()
+            .from('archivos_ficha')
+            .delete()
+            .eq('id', archivoId);
+
+        if (dbError) throw dbError;
+
+        showToast('Archivo eliminado correctamente', 'success');
+
+        // 3. Actualizar la lista visualmente
+        const pdfItem = document.getElementById(`pdf-item-${archivoId}`);
+        if (pdfItem) {
+            pdfItem.remove();
+        }
+
+        // 4. Si no quedan archivos, ocultar la sección
+        const existingPdfsList = document.getElementById('existing-pdfs-list');
+        if (existingPdfsList && existingPdfsList.children.length === 0) {
+            const existingPdfsSection = document.getElementById('existing-pdfs-section');
+            if (existingPdfsSection) existingPdfsSection.style.display = 'none';
+        }
+
+    } catch (err) {
+        console.error('Error deleting PDF:', err);
+        showToast('Error al eliminar el archivo', 'error');
+    }
+}
+
+// ---- PDF Optimization and Upload ----
+async function uploadAndOptimizePDFs(fichaId, files) {
+    console.log('Optimizando y subiendo PDFs para ficha:', fichaId);
+
+    for (let file of files) {
+        try {
+            // 1. Leer el archivo PDF
+            const arrayBuffer = await file.arrayBuffer();
+
+            // 2. Optimizar el PDF con pdf-lib
+            const pdfDoc = await PDFLib.PDFDocument.load(arrayBuffer);
+
+            // Comprimir imágenes (si las hay) y eliminar objetos innecesarios
+            // pdf-lib no tiene compresión automática avanzada, pero podemos serializar de nuevo
+            // Esto por sí solo reduce el tamaño al reorganizar la estructura
+            const optimizedBytes = await pdfDoc.save();
+
+            // 3. Crear Blob optimizado
+            const optimizedBlob = new Blob([optimizedBytes], { type: 'application/pdf' });
+
+            // 4. Subir a Supabase Storage
+            const fileName = `${fichaId}_${Date.now()}_${file.name}`;
+            const { data, error } = await supabaseClient.storage
+                .from('archivos_ficha')
+                .upload(fileName, optimizedBlob);
+
+            if (error) {
+                console.error('Error subiendo PDF:', error);
+                continue;
+            }
+
+            // 5. Guardar metadatos en la tabla archivos_ficha
+            const metadata = {
+                ficha_id: fichaId,
+                usuario_id: currentUser ? currentUser.id : null, // Guardar el ID del usuario actual
+                nombre_original: file.name,
+                nombre_optimizado: fileName,
+                peso_original: file.size,
+                peso_optimizado: optimizedBlob.size,
+                mime_type: file.type
+            };
+
+            const { error: metaError } = await db().from('archivos_ficha').insert([metadata]);
+
+            if (metaError) {
+                console.error('Error guardando metadatos:', metaError);
+                console.error('Metadata intentada:', metadata);
+                // Intentar eliminar el archivo subido si falla el guardado de metadatos
+                await supabaseClient.storage.from('archivos_ficha').remove([fileName]);
+            } else {
+                console.log(`PDF optimizado: ${file.size} -> ${optimizedBlob.size} bytes`);
+            }
+
+        } catch (err) {
+            console.error('Error procesando archivo:', file.name, err);
+        }
+    }
 }
