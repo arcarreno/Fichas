@@ -3,5 +3,8 @@
   "version": "1.0.0",
   "scripts": {
     "build": "node generate-config.js"
+  },
+  "dependencies": {
+    "sileo": "^0.1.5"
   }
 }

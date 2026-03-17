@@ -21,12 +21,9 @@
 
 <body>
 
-    <!-- Toast Container -->
-    <div class="toast-container" id="toast-container"></div>
-
     <!-- ============================================
-       LOADING SCREEN
-       ============================================ -->
+        LOADING SCREEN
+        ============================================ -->
     <div id="loading-view" class="view loading-view-fullscreen">
         <div class="loading-content">
             <div id="welcome-animation-container" class="welcome-animation"></div>
@@ -181,7 +178,7 @@
                     </button>
                     <span class="badge-comments" id="badge-comments-revisor" style="display: none;">0</span>
                 </div>
-                
+
                 <button class="btn btn-secondary btn-sm" id="btn-report-general-revisor"><i
                         class="fas fa-chart-bar"></i> Reporte</button>
                 <div class="user-badge">
@@ -543,15 +540,17 @@
                 <!-- Step 4: File Upload -->
                 <div class="step-content" data-step="4">
                     <h3><i class="fas fa-file-pdf"></i> Subir Documentos (PDF)</h3>
-                    <p class="info-text">Adjunta los archivos PDF requeridos. Se optimizarán automáticamente para reducir el peso.</p>
+                    <p class="info-text">Adjunta los archivos PDF requeridos. Se optimizarán automáticamente para
+                        reducir el peso.</p>
                     <div class="form-group">
                         <label for="ficha-pdf-input">Seleccionar archivos PDF</label>
-                        <input type="file" id="ficha-pdf-input" accept=".pdf" multiple style="display: block; margin-top: 10px;">
+                        <input type="file" id="ficha-pdf-input" accept=".pdf" multiple
+                            style="display: block; margin-top: 10px;">
                     </div>
                     <div id="pdf-preview-list" style="margin-top: 20px;">
                         <!-- Lista de archivos seleccionados aparecerá aquí -->
                     </div>
-                    
+
                     <!-- Sección de PDFs anexados existentes (solo para edición) -->
                     <div id="existing-pdfs-section" style="margin-top: 30px; display: none;">
                         <h4><i class="fas fa-list"></i> Documentos Anexos Existentes</h4>
@@ -675,17 +674,18 @@
     </div>
 
     <!-- ============================================
-       MODAL: TUTORIAL
+       MODAL: TUTORIAL ADMIN (Secuencia 1-8)
        ============================================ -->
+    <!-- 1. Bienvenida Admin -->
     <div class="modal-overlay tutorial-overlay" id="modal-tutorial-1">
         <div class="modal glass-card modal-tutorial" style="width: 90%; max-width: 700px;">
             <div class="modal-body">
                 <div class="tutorial-content">
                     <div class="tutorial-text">
-                        <h2><i class="fas fa-rocket"></i> Bienvenido</h2>
-                        <p>Te explicamos cómo usar el sistema.</p>
+                        <h2><i class="fas fa-rocket"></i> Bienvenido Administrador</h2>
+                        <p>Te guiaremos por las principales funciones del sistema.</p>
                         <p><strong>Paso 1: Panel de Administración</strong></p>
-                        <p>Aquí podrás crear usuarios y nuevas fichas técnicas.</p>
+                        <p>Aquí podrás gestionar usuarios, fichas y reportes.</p>
                     </div>
                     <div class="tutorial-animation" id="robot-animation-1"></div>
                 </div>
@@ -696,17 +696,18 @@
         </div>
     </div>
 
+    <!-- 2. Crear Usuario -->
     <div class="modal-overlay tutorial-overlay" id="modal-tutorial-2">
         <div class="modal glass-card modal-tutorial" style="width: 90%; max-width: 700px;">
             <div class="modal-body">
                 <div class="tutorial-content">
                     <div class="tutorial-text">
-                        <h2><i class="fas fa-file-alt"></i> Creación de Fichas</h2>
-                        <p>Las fichas se crean en 3 pasos sencillos:</p>
+                        <h2><i class="fas fa-user-plus"></i> Crear Nuevo Usuario</h2>
+                        <p>Para agregar un nuevo usuario al sistema:</p>
                         <ul>
-                            <li><i class="fas fa-check"></i> Info Básica</li>
-                            <li><i class="fas fa-check"></i> Ubicación en Mapa</li>
-                            <li><i class="fas fa-check"></i> Infraestructura</li>
+                            <li><i class="fas fa-check"></i> Haz clic en el botón "Usuarios"</li>
+                            <li><i class="fas fa-check"></i> Selecciona "Crear Usuario"</li>
+                            <li><i class="fas fa-check"></i> Completa el formulario y guarda</li>
                         </ul>
                     </div>
                     <div class="tutorial-animation" id="robot-animation-2"></div>
@@ -719,30 +720,158 @@
         </div>
     </div>
 
+    <!-- 3. Gestionar Usuarios -->
     <div class="modal-overlay tutorial-overlay" id="modal-tutorial-3">
         <div class="modal glass-card modal-tutorial" style="width: 90%; max-width: 700px;">
             <div class="modal-body">
                 <div class="tutorial-content">
                     <div class="tutorial-text">
-                        <h2><i class="fas fa-map-marker-alt"></i> Ubicación y Status</h2>
-                        <p>Selecciona la ubicación y define el avance del expediente.</p>
-                        <p>Comienza ahora mismo</p>
+                        <h2><i class="fas fa-users-cog"></i> Gestionar Usuarios</h2>
+                        <p>Administra los usuarios existentes:</p>
+                        <ul>
+                            <li><i class="fas fa-check"></i> Visualiza la lista de usuarios</li>
+                            <li><i class="fas fa-check"></i> Elimina usuarios si es necesario</li>
+                            <!-- Nota: La edición de usuarios no está disponible actualmente -->
+                        </ul>
                     </div>
                     <div class="tutorial-animation" id="robot-animation-3"></div>
                 </div>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="prevTutorialStep(2)">Anterior</button>
-                <button class="btn btn-success" onclick="closeTutorial()"><i class="fas fa-check"></i>
-                    ¡Entendido!</button>
+                <button class="btn btn-primary" onclick="nextTutorialStep(4)">Siguiente</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. Crear Fichas -->
+    <div class="modal-overlay tutorial-overlay" id="modal-tutorial-4">
+        <div class="modal glass-card modal-tutorial" style="width: 90%; max-width: 700px;">
+            <div class="modal-body">
+                <div class="tutorial-content">
+                    <div class="tutorial-text">
+                        <h2><i class="fas fa-file-alt"></i> Creación de Fichas</h2>
+                        <p>Las fichas se crean en 4 pasos sencillos:</p>
+                        <ul>
+                            <li><i class="fas fa-check"></i> Info Básica</li>
+                            <li><i class="fas fa-check"></i> Ubicación en Mapa</li>
+                            <li><i class="fas fa-check"></i> Infraestructura</li>
+                            <li><i class="fas fa-check"></i> Subir Archivos PDF</li>
+                        </ul>
+                    </div>
+                    <div class="tutorial-animation" id="robot-animation-4"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="prevTutorialStep(3)">Anterior</button>
+                <button class="btn btn-primary" onclick="nextTutorialStep(5)">Siguiente</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. Eliminar Fichas -->
+    <div class="modal-overlay tutorial-overlay" id="modal-tutorial-5">
+        <div class="modal glass-card modal-tutorial" style="width: 90%; max-width: 700px;">
+            <div class="modal-body">
+                <div class="tutorial-content">
+                    <div class="tutorial-text">
+                        <h2><i class="fas fa-trash-alt"></i> Eliminar Fichas</h2>
+                        <p>Para eliminar una ficha:</p>
+                        <ul>
+                            <li><i class="fas fa-check"></i> Busca la ficha en la lista</li>
+                            <li><i class="fas fa-check"></i> Haz clic en el icono de eliminar</li>
+                            <li><i class="fas fa-check"></i> Confirma la acción</li>
+                        </ul>
+                    </div>
+                    <div class="tutorial-animation" id="robot-animation-5"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="prevTutorialStep(4)">Anterior</button>
+                <button class="btn btn-primary" onclick="nextTutorialStep(6)">Siguiente</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 6. Editar Fichas -->
+    <div class="modal-overlay tutorial-overlay" id="modal-tutorial-6">
+        <div class="modal glass-card modal-tutorial" style="width: 90%; max-width: 700px;">
+            <div class="modal-body">
+                <div class="tutorial-content">
+                    <div class="tutorial-text">
+                        <h2><i class="fas fa-edit"></i> Editar Fichas</h2>
+                        <p>Modifica la información de las fichas:</p>
+                        <ul>
+                            <li><i class="fas fa-check"></i> Selecciona la ficha a editar</li>
+                            <li><i class="fas fa-check"></i> Actualiza los campos necesarios</li>
+                            <li><i class="fas fa-check"></i> Guarda los cambios</li>
+                        </ul>
+                    </div>
+                    <div class="tutorial-animation" id="robot-animation-6"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="prevTutorialStep(5)">Anterior</button>
+                <button class="btn btn-primary" onclick="nextTutorialStep(7)">Siguiente</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 7. Exportar -->
+    <div class="modal-overlay tutorial-overlay" id="modal-tutorial-7">
+        <div class="modal glass-card modal-tutorial" style="width: 90%; max-width: 700px;">
+            <div class="modal-body">
+                <div class="tutorial-content">
+                    <div class="tutorial-text">
+                        <h2><i class="fas fa-file-export"></i> Exportar Datos</h2>
+                        <p>Exporta tus fichas a diferentes formatos:</p>
+                        <ul>
+                            <li><i class="fas fa-file-pdf"></i> PDF para impresión</li>
+                            <li><i class="fas fa-file-excel"></i> Excel para análisis</li>
+                            <li><i class="fas fa-file-alt"></i> Otros formatos disponibles</li>
+                        </ul>
+                    </div>
+                    <div class="tutorial-animation" id="robot-animation-7"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="prevTutorialStep(6)">Anterior</button>
+                <button class="btn btn-primary" onclick="nextTutorialStep(8)">Siguiente</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 8. Reportes Generales -->
+    <div class="modal-overlay tutorial-overlay" id="modal-tutorial-8">
+        <div class="modal glass-card modal-tutorial" style="width: 90%; max-width: 700px;">
+            <div class="modal-body">
+                <div class="tutorial-content">
+                    <div class="tutorial-text">
+                        <h2><i class="fas fa-chart-bar"></i> Reportes Generales</h2>
+                        <p>Genera reportes detallados del sistema:</p>
+                        <ul>
+                            <li><i class="fas fa-check"></i> Reportes de actividad</li>
+                            <li><i class="fas fa-check"></i> Estadísticas de fichas</li>
+                            <li><i class="fas fa-check"></i> Historial de cambios</li>
+                        </ul>
+                    </div>
+                    <div class="tutorial-animation" id="robot-animation-8"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary"
+                    onclick="prevTutorialStep(7)">Anterior</button>
+                <button class="btn btn-success" onclick="closeTutorial()"><i
+                        class="fas fa-check"></i> ¡Entendido!</button>
             </div>
         </div>
     </div>
 
     <!-- ============================================
-       MODAL: BIENVENIDA REVISOR
+       MODAL: TUTORIAL REVISOR (Secuencia 1-5)
        ============================================ -->
-    <div class="modal-overlay tutorial-overlay" id="modal-tutorial-revisor">
+    <!-- 1. Bienvenida Revisor -->
+    <div class="modal-overlay tutorial-overlay" id="modal-tutorial-revisor-1">
         <div class="modal glass-card modal-tutorial" style="width: 90%; max-width: 700px;">
             <div class="modal-body">
                 <div class="tutorial-content">
@@ -756,20 +885,118 @@
                             <li><i class="fas fa-check"></i> Valida la información de las fichas</li>
                         </ul>
                     </div>
-                    <div class="tutorial-animation" id="robot-animation-revisor"></div>
+                    <div class="tutorial-animation" id="robot-animation-revisor-1"></div>
                 </div>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-success" onclick="closeTutorialRevisor()"><i class="fas fa-check"></i>
-                    ¡Entendido!</button>
+                <button class="btn btn-primary" onclick="nextRevisorStep(2)">Siguiente</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Comentarios -->
+    <div class="modal-overlay tutorial-overlay" id="modal-tutorial-revisor-2">
+        <div class="modal glass-card modal-tutorial" style="width: 90%; max-width: 700px;">
+            <div class="modal-body">
+                <div class="tutorial-content">
+                    <div class="tutorial-text">
+                        <h2><i class="fas fa-comments"></i> Comentarios y Observaciones</h2>
+                        <p>Añade comentarios a las fichas:</p>
+                        <ul>
+                            <li><i class="fas fa-check"></i> Selecciona una ficha</li>
+                            <li><i class="fas fa-check"></i> Escribe tu observación</li>
+                            <li><i class="fas fa-check"></i> Guarda el comentario</li>
+                        </ul>
+                    </div>
+                    <div class="tutorial-animation" id="robot-animation-revisor-2"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="prevRevisorStep(1)">Anterior</button>
+                <button class="btn btn-primary" onclick="nextRevisorStep(3)">Siguiente</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. Modificar Fichas -->
+    <div class="modal-overlay tutorial-overlay" id="modal-tutorial-revisor-3">
+        <div class="modal glass-card modal-tutorial" style="width: 90%; max-width: 700px;">
+            <div class="modal-body">
+                <div class="tutorial-content">
+                    <div class="tutorial-text">
+                        <h2><i class="fas fa-edit"></i> Modificar Fichas</h2>
+                        <p>Como revisor puedes modificar fichas:</p>
+                        <ul>
+                            <li><i class="fas fa-check"></i> Edita la información válida</li>
+                            <li><i class="fas fa-check"></i> Actualiza el estado de la ficha</li>
+                            <li><i class="fas fa-check"></i> Guarda los cambios realizados</li>
+                        </ul>
+                    </div>
+                    <div class="tutorial-animation" id="robot-animation-revisor-3"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="prevRevisorStep(2)">Anterior</button>
+                <button class="btn btn-primary"
+                    onclick="nextRevisorStep(4)">Siguiente</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. Exportar Revisor -->
+    <div class="modal-overlay tutorial-overlay" id="modal-tutorial-revisor-4">
+        <div class="modal glass-card modal-tutorial" style="width: 90%; max-width: 700px;">
+            <div class="modal-body">
+                <div class="tutorial-content">
+                    <div class="tutorial-text">
+                        <h2><i class="fas fa-file-export"></i> Exportar Datos</h2>
+                        <p>Exporta las fichas revisadas:</p>
+                        <ul>
+                            <li><i class="fas fa-file-pdf"></i> PDF para revisión</li>
+                            <li><i class="fas fa-file-excel"></i> Excel para informes</li>
+                        </ul>
+                    </div>
+                    <div class="tutorial-animation" id="robot-animation-revisor-4"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="prevRevisorStep(3)">Anterior</button>
+                <button class="btn btn-primary"
+                    onclick="nextRevisorStep(5)">Siguiente</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. Reportes Revisor -->
+    <div class="modal-overlay tutorial-overlay" id="modal-tutorial-revisor-5">
+        <div class="modal glass-card modal-tutorial" style="width: 90%; max-width: 700px;">
+            <div class="modal-body">
+                <div class="tutorial-content">
+                    <div class="tutorial-text">
+                        <h2><i class="fas fa-chart-bar"></i> Reportes Generales</h2>
+                        <p>Genera reportes de tu actividad:</p>
+                        <ul>
+                            <li><i class="fas fa-check"></i> Historial de revisiones</li>
+                            <li><i class="fas fa-check"></i> Estadísticas de aprobación</li>
+                        </ul>
+                    </div>
+                    <div class="tutorial-animation" id="robot-animation-revisor-5"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary"
+                    onclick="prevRevisorStep(4)">Anterior</button>
+                <button class="btn btn-success" onclick="closeTutorialRevisor()"><i
+                        class="fas fa-check"></i> ¡Entendido!</button>
             </div>
         </div>
     </div>
 
     <!-- ============================================
-       MODAL: BIENVENIDA VISOR
+       MODAL: TUTORIAL VISOR (Secuencia 1-4)
        ============================================ -->
-    <div class="modal-overlay tutorial-overlay" id="modal-tutorial-visor">
+    <!-- 1. Bienvenida Visor -->
+    <div class="modal-overlay tutorial-overlay" id="modal-tutorial-visor-1">
         <div class="modal glass-card modal-tutorial" style="width: 90%; max-width: 700px;">
             <div class="modal-body">
                 <div class="tutorial-content">
@@ -783,12 +1010,81 @@
                             <li><i class="fas fa-check"></i> Genera reportes de consulta</li>
                         </ul>
                     </div>
-                    <div class="tutorial-animation" id="robot-animation-visor"></div>
+                    <div class="tutorial-animation" id="robot-animation-visor-1"></div>
                 </div>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-success" onclick="closeTutorialVisor()"><i class="fas fa-check"></i>
-                    ¡Entendido!</button>
+                <button class="btn btn-primary" onclick="nextVisorStep(2)">Siguiente</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Comentarios Visor -->
+    <div class="modal-overlay tutorial-overlay" id="modal-tutorial-visor-2">
+        <div class="modal glass-card modal-tutorial" style="width: 90%; max-width: 700px;">
+            <div class="modal-body">
+                <div class="tutorial-content">
+                    <div class="tutorial-text">
+                        <h2><i class="fas fa-comments"></i> Comentarios</h2>
+                        <p>Consulta los comentarios de las fichas:</p>
+                        <ul>
+                            <li><i class="fas fa-check"></i> Selecciona una ficha</li>
+                            <li><i class="fas fa-check"></i> Revisa las observaciones</li>
+                        </ul>
+                    </div>
+                    <div class="tutorial-animation" id="robot-animation-visor-2"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="prevVisorStep(1)">Anterior</button>
+                <button class="btn btn-primary" onclick="nextVisorStep(3)">Siguiente</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. Exportar Visor -->
+    <div class="modal-overlay tutorial-overlay" id="modal-tutorial-visor-3">
+        <div class="modal glass-card modal-tutorial" style="width: 90%; max-width: 700px;">
+            <div class="modal-body">
+                <div class="tutorial-content">
+                    <div class="tutorial-text">
+                        <h2><i class="fas fa-file-export"></i> Exportar Datos</h2>
+                        <p>Exporta las fichas consultadas:</p>
+                        <ul>
+                            <li><i class="fas fa-file-pdf"></i> PDF para impresión</li>
+                            <li><i class="fas fa-file-excel"></i> Excel para análisis</li>
+                        </ul>
+                    </div>
+                    <div class="tutorial-animation" id="robot-animation-visor-3"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="prevVisorStep(2)">Anterior</button>
+                <button class="btn btn-primary" onclick="nextVisorStep(4)">Siguiente</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. Reportes Visor -->
+    <div class="modal-overlay tutorial-overlay" id="modal-tutorial-visor-4">
+        <div class="modal glass-card modal-tutorial" style="width: 90%; max-width: 700px;">
+            <div class="modal-body">
+                <div class="tutorial-content">
+                    <div class="tutorial-text">
+                        <h2><i class="fas fa-chart-bar"></i> Reportes Generales</h2>
+                        <p>Genera reportes de consulta:</p>
+                        <ul>
+                            <li><i class="fas fa-check"></i> Historial de visualizaciones</li>
+                            <li><i class="fas fa-check"></i> Estadísticas de acceso</li>
+                        </ul>
+                    </div>
+                    <div class="tutorial-animation" id="robot-animation-visor-4"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="prevVisorStep(3)">Anterior</button>
+                <button class="btn btn-success" onclick="closeTutorialVisor()"><i
+                        class="fas fa-check"></i> ¡Entendido!</button>
             </div>
         </div>
     </div>
@@ -814,6 +1110,15 @@
                 <button class="btn btn-secondary" id="delete-cancel-btn">Cancelar</button>
                 <button class="btn btn-danger" id="delete-confirm-btn">Eliminar</button>
             </div>
+        </div>
+    </div>
+
+    <!-- ============================================
+         ISLA DINAMICA (Dynamic Island)
+         ============================================ -->
+    <div id="dynamic-island" class="dynamic-island">
+        <div class="island-content">
+            <span class="island-text">Notificaciones</span>
         </div>
     </div>
 

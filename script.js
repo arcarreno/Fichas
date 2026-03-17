@@ -171,16 +171,20 @@ async function handleLogin(e) {
             const firstLoginKey = `first_login_${data.id}`;
             if (!localStorage.getItem(firstLoginKey)) {
                 localStorage.setItem(firstLoginKey, 'false');
-                // Mostrar tutorial según el rol
-                if (data.role === 'admin') {
-                    showTutorial();
-                } else if (data.role === 'revisor') {
-                    showTutorialRevisor();
-                } else if (data.role === 'visor') {
-                    showTutorialVisor();
-                } else {
-                    navigateToDashboard();
-                }
+                
+                // Primero navegamos al dashboard para estar dentro de la interfaz
+                navigateToDashboard();
+                
+                // Luego mostramos el tutorial (con un pequeño delay para asegurar que la vista está renderizada)
+                setTimeout(() => {
+                    if (data.role === 'admin') {
+                        showTutorial();
+                    } else if (data.role === 'revisor') {
+                        showTutorialRevisor();
+                    } else if (data.role === 'visor') {
+                        showTutorialVisor();
+                    }
+                }, 100);
             } else {
                 navigateToDashboard();
             }
@@ -2262,6 +2266,7 @@ function exportToExcel(buttonId) {
 }
 
 // ---- Tutorial ----
+
 function showTutorial() {
     openModal('modal-tutorial-1');
     initRobotAnimation('robot-animation-1');
@@ -2281,27 +2286,57 @@ function prevTutorialStep(step) {
 
 function closeTutorial() {
     document.querySelectorAll('.tutorial-overlay').forEach(m => m.classList.remove('active'));
-    navigateToDashboard();
+    setTimeout(() => {
+        navigateToDashboard();
+    }, 500);
 }
 
 function showTutorialRevisor() {
-    openModal('modal-tutorial-revisor');
-    initRobotAnimation('robot-animation-revisor');
+    openModal('modal-tutorial-revisor-1');
+    initRobotAnimation('robot-animation-revisor-1');
+}
+
+function nextRevisorStep(step) {
+    document.querySelectorAll('.tutorial-overlay').forEach(m => m.classList.remove('active'));
+    openModal(`modal-tutorial-revisor-${step}`);
+    initRobotAnimation(`robot-animation-revisor-${step}`);
+}
+
+function prevRevisorStep(step) {
+    document.querySelectorAll('.tutorial-overlay').forEach(m => m.classList.remove('active'));
+    openModal(`modal-tutorial-revisor-${step}`);
+    initRobotAnimation(`robot-animation-revisor-${step}`);
 }
 
 function closeTutorialRevisor() {
     document.querySelectorAll('.tutorial-overlay').forEach(m => m.classList.remove('active'));
-    navigateToDashboard();
+    setTimeout(() => {
+        navigateToDashboard();
+    }, 500);
 }
 
 function showTutorialVisor() {
-    openModal('modal-tutorial-visor');
-    initRobotAnimation('robot-animation-visor');
+    openModal('modal-tutorial-visor-1');
+    initRobotAnimation('robot-animation-visor-1');
+}
+
+function nextVisorStep(step) {
+    document.querySelectorAll('.tutorial-overlay').forEach(m => m.classList.remove('active'));
+    openModal(`modal-tutorial-visor-${step}`);
+    initRobotAnimation(`robot-animation-visor-${step}`);
+}
+
+function prevVisorStep(step) {
+    document.querySelectorAll('.tutorial-overlay').forEach(m => m.classList.remove('active'));
+    openModal(`modal-tutorial-visor-${step}`);
+    initRobotAnimation(`robot-animation-visor-${step}`);
 }
 
 function closeTutorialVisor() {
     document.querySelectorAll('.tutorial-overlay').forEach(m => m.classList.remove('active'));
-    navigateToDashboard();
+    setTimeout(() => {
+        navigateToDashboard();
+    }, 500);
 }
 
 function initRobotAnimation(containerId) {
@@ -2440,12 +2475,8 @@ function showLoadingScreen(callback) {
 
 // ---- Utilities ----
 function showToast(message, type = 'info') {
-    const container = document.getElementById('toast-container');
-    const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
-    toast.textContent = message;
-    container.appendChild(toast);
-    setTimeout(() => toast.remove(), 3000);
+    // Redirigir a la Isla Dinámica
+    showDynamicIsland(message, type);
 }
 
 // ---- Realtime (WebSockets) ----
@@ -2496,17 +2527,32 @@ function handleComentarioChange(payload) {
     
     // Si es una inserción (nuevo comentario)
     if (payload.eventType === 'INSERT') {
-        const role = currentUser ? currentUser.role : null;
+        // Verificar si el comentario es del usuario actual
+        const isMyComment = payload.new.usuario_id === (currentUser ? currentUser.id : null);
         
-        // Si soy Admin, actualizar el contador de mensajes
-        if (role === 'admin') {
-            loadCommentsCount();
-            
-            // Si el dropdown de mensajes está abierto, recargarlo
-            const dropdown = document.getElementById('messages-dropdown');
-            if (dropdown && dropdown.style.display === 'block') {
-                loadCommentsDropdown();
+        // Mostrar notificación a TODOS excepto al emisor
+        if (!isMyComment) {
+            showToast('Nuevo mensaje recibido', 'info');
+        }
+        
+        // Actualizar contador para TODOS los usuarios (siempre que no sea su propio comentario)
+        if (!isMyComment && currentUser) {
+            // Llamar a la función de carga de contador correspondiente al rol
+            if (currentUser.role === 'admin') {
+                loadCommentsCount();
+            } else if (currentUser.role === 'revisor') {
+                loadCommentsCountRevisor();
+            } else if (currentUser.role === 'visor') {
+                loadCommentsCountVisor();
             }
+        }
+        
+        // Si el dropdown está abierto, recargarlo para mostrar el nuevo mensaje
+        const dropdown = document.getElementById('messages-dropdown');
+        const isDropdownOpen = dropdown && dropdown.classList.contains('open');
+        
+        if (isDropdownOpen) {
+            loadCommentsDropdown(null);
         }
     }
 }
@@ -2676,6 +2722,21 @@ function toggleMessagesDropdown() {
                 badge.style.display = 'none';
                 badge.textContent = '0';
             }
+            
+            // NO actualizamos el timestamp al abrir el dropdown
+            // Los mensajes seguirán siendo "nuevos" (gris) mientras el panel esté abierto
+            
+            loadCommentsDropdown();
+        } else {
+            // Al cerrar el dropdown, actualizar el timestamp al momento actual
+            try {
+                localStorage.setItem('lastSeenCommentTimestamp', new Date().toISOString());
+                console.log('Panel cerrado: timestamp actualizado a la hora actual');
+            } catch (e) {
+                console.warn('No se puede guardar en localStorage:', e);
+            }
+            
+            // Recargar el dropdown para que los puntos cambien a azul
             loadCommentsDropdown();
         }
     } else {
@@ -2742,24 +2803,60 @@ async function loadCommentsCount() {
 
         const { data: comentarios, error } = await db()
             .from('comentarios')
-            .select('*, fichas(folio), usuarios(nombre)')
-            .gte('created_at', twoDaysAgo.toISOString());
+            .select('*, fichas(folio), usuarios(username, role)')
+            .gte('created_at', twoDaysAgo.toISOString())
+            .order('created_at', { ascending: false });
 
         if (error) throw error;
 
-        const count = comentarios ? comentarios.length : 0;
         const badge = document.getElementById('badge-comments');
-
-        // Lógica de burbuja: Solo mostrar si hay comentarios NO vistos
+        let lastSeenTimestamp = null;
+        try {
+            lastSeenTimestamp = localStorage.getItem('lastSeenCommentTimestamp');
+        } catch (e) {
+            console.warn('No se puede acceder a localStorage:', e);
+        }
+        
+        // Filtrar comentarios visibles según rol (similar a loadCommentsDropdown)
+        const currentRole = currentUser ? currentUser.role : null;
+        let allowedRoles = [];
+        if (currentRole === 'admin') allowedRoles = ['admin', 'revisor', 'visor']; // Admin ve a todos
+        else if (currentRole === 'revisor') allowedRoles = ['admin', 'visor'];
+        else if (currentRole === 'visor') allowedRoles = ['admin', 'revisor'];
+        
+        // Filtrar comentarios y contar solo los "nuevos"
         let unseenCount = 0;
-        const lastSeenTimestamp = localStorage.getItem('lastSeenCommentTimestamp');
-
+        let visibleComments = [];
+        
         if (comentarios && comentarios.length > 0) {
-            const latestComment = comentarios[0]; // El más reciente (ordenado por fecha DESC)
+            visibleComments = comentarios.filter(comment => {
+                // Verificar rol del autor
+                if (comment.usuarios && comment.usuarios.role) {
+                    return allowedRoles.includes(comment.usuarios.role);
+                }
+                return false;
+            });
             
-            if (!lastSeenTimestamp || new Date(latestComment.created_at) > new Date(lastSeenTimestamp)) {
-                unseenCount = count; // Hay comentarios nuevos
-            }
+            // Contar comentarios nuevos (posteriores al último visto), excluyendo los propios
+            visibleComments.forEach(comment => {
+                // Excluir comentarios del usuario actual
+                if (currentUser && comment.usuario_id === currentUser.id) {
+                    return;
+                }
+                if (!lastSeenTimestamp || new Date(comment.created_at) > new Date(lastSeenTimestamp)) {
+                    unseenCount++;
+                }
+            });
+            
+            // Debug
+            console.log('Total comentarios:', comentarios.length);
+            console.log('Comentarios visibles:', visibleComments.length);
+            console.log('Last seen timestamp:', lastSeenTimestamp);
+            console.log('Unseen count:', unseenCount);
+            // Log de los primeros 3 comentarios visibles para depuración
+            visibleComments.slice(0, 3).forEach((c, i) => {
+                console.log(`Comentario visible ${i}: fecha=${c.created_at}, usuario=${c.usuarios?.username}`);
+            });
         }
 
         // Mostrar burbuja solo si hay comentarios nuevos
@@ -2770,8 +2867,7 @@ async function loadCommentsCount() {
             badge.style.display = 'none';
         }
 
-        // Load comments into dropdown
-        loadCommentsDropdown(comentarios);
+        // No cargamos el dropdown aquí. El dropdown solo se carga cuando se abre o cuando llega un comentario nuevo.
 
     } catch (err) {
         console.error('Error loading comments:', err);
@@ -2779,7 +2875,70 @@ async function loadCommentsCount() {
 }
 
 async function loadCommentsCountVisor() {
-    return loadCommentsCountRevisor();
+    try {
+        // Calcular fecha límite (hace 2 días)
+        const twoDaysAgo = new Date();
+        twoDaysAgo.setDate(twoDaysAgo.getDate() - RETENTION_DAYS);
+        twoDaysAgo.setHours(0, 0, 0, 0);
+
+        const { data: comentarios, error } = await db()
+            .from('comentarios')
+            .select('*, fichas(folio), usuarios(username, role)')
+            .gte('created_at', twoDaysAgo.toISOString())
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        const badge = document.getElementById('badge-comments-visor');
+        let lastSeenTimestamp = null;
+        try {
+            lastSeenTimestamp = localStorage.getItem('lastSeenCommentTimestamp');
+        } catch (e) {
+            console.warn('No se puede acceder a localStorage:', e);
+        }
+        
+        // Filtrar comentarios visibles según rol (similar a loadCommentsDropdown)
+        // Para visor: ve Admin y Revisor
+        const allowedRoles = ['admin', 'revisor'];
+        
+        // Filtrar comentarios y contar solo los "nuevos"
+        let unseenCount = 0;
+        let visibleComments = [];
+        
+        if (comentarios && comentarios.length > 0) {
+            visibleComments = comentarios.filter(comment => {
+                // Verificar rol del autor
+                if (comment.usuarios && comment.usuarios.role) {
+                    return allowedRoles.includes(comment.usuarios.role);
+                }
+                return false;
+            });
+            
+            // Contar comentarios nuevos (posteriores al último visto), excluyendo los propios
+            visibleComments.forEach(comment => {
+                // Excluir comentarios del usuario actual
+                if (currentUser && comment.usuario_id === currentUser.id) {
+                    return;
+                }
+                if (!lastSeenTimestamp || new Date(comment.created_at) > new Date(lastSeenTimestamp)) {
+                    unseenCount++;
+                }
+            });
+        }
+
+        // Mostrar burbuja solo si hay comentarios nuevos
+        if (badge && unseenCount > 0) {
+            badge.textContent = unseenCount;
+            badge.style.display = 'flex';
+        } else if (badge) {
+            badge.style.display = 'none';
+        }
+
+        // No cargamos el dropdown aquí. El dropdown solo se carga cuando se abre o cuando llega un comentario nuevo.
+
+    } catch (err) {
+        console.error('Error loading comments for visor:', err);
+    }
 }
 
 async function loadCommentsCountRevisor() {
@@ -2791,24 +2950,47 @@ async function loadCommentsCountRevisor() {
 
         const { data: comentarios, error } = await db()
             .from('comentarios')
-            .select('*, fichas(folio), usuarios(nombre)')
-            .gte('created_at', twoDaysAgo.toISOString());
+            .select('*, fichas(folio), usuarios(nombre, role)')
+            .gte('created_at', twoDaysAgo.toISOString())
+            .order('created_at', { ascending: false });
 
         if (error) throw error;
 
-        const count = comentarios ? comentarios.length : 0;
         const badge = document.getElementById('badge-comments-revisor');
-
-        // Lógica de burbuja: Solo mostrar si hay comentarios NO vistos
+        let lastSeenTimestamp = null;
+        try {
+            lastSeenTimestamp = localStorage.getItem('lastSeenCommentTimestamp');
+        } catch (e) {
+            console.warn('No se puede acceder a localStorage:', e);
+        }
+        
+        // Filtrar comentarios visibles según rol (similar a loadCommentsDropdown)
+        // Para revisor: ve Admin y Visor
+        const allowedRoles = ['admin', 'visor'];
+        
+        // Filtrar comentarios y contar solo los "nuevos"
         let unseenCount = 0;
-        const lastSeenTimestamp = localStorage.getItem('lastSeenCommentTimestamp');
-
+        let visibleComments = [];
+        
         if (comentarios && comentarios.length > 0) {
-            const latestComment = comentarios[0]; // El más reciente
+            visibleComments = comentarios.filter(comment => {
+                // Verificar rol del autor
+                if (comment.usuarios && comment.usuarios.role) {
+                    return allowedRoles.includes(comment.usuarios.role);
+                }
+                return false;
+            });
             
-            if (!lastSeenTimestamp || new Date(latestComment.created_at) > new Date(lastSeenTimestamp)) {
-                unseenCount = count; // Hay comentarios nuevos
-            }
+            // Contar comentarios nuevos (posteriores al último visto), excluyendo los propios
+            visibleComments.forEach(comment => {
+                // Excluir comentarios del usuario actual
+                if (currentUser && comment.usuario_id === currentUser.id) {
+                    return;
+                }
+                if (!lastSeenTimestamp || new Date(comment.created_at) > new Date(lastSeenTimestamp)) {
+                    unseenCount++;
+                }
+            });
         }
 
         // Mostrar burbuja solo si hay comentarios nuevos
@@ -2819,8 +3001,7 @@ async function loadCommentsCountRevisor() {
             badge.style.display = 'none';
         }
 
-        // Load comments into dropdown
-        loadCommentsDropdown(comentarios);
+        // No cargamos el dropdown aquí. El dropdown solo se carga cuando se abre o cuando llega un comentario nuevo.
 
     } catch (err) {
         console.error('Error loading comments for revisor:', err);
@@ -2852,7 +3033,7 @@ async function loadCommentsDropdown(comentarios = null) {
 
             const { data, error } = await db()
                 .from('comentarios')
-                .select('*, fichas(folio), usuarios(nombre, role)') // Agregamos role aquí
+                .select('*, fichas(folio), usuarios(username, role)') // Agregamos role aquí
                 .gte('created_at', twoDaysAgo.toISOString())
                 .order('created_at', { ascending: false });
 
@@ -2889,12 +3070,12 @@ async function loadCommentsDropdown(comentarios = null) {
         const currentRole = currentUser ? currentUser.role : null;
 
         // Definir qué roles son visibles para el rol actual
-        // Admin: ve Revisor y Visor
+        // Admin: ve Admin, Revisor y Visor
         // Revisor: ve Admin y Visor
         // Visor: ve Admin y Revisor
         let allowedRoles = [];
         if (currentRole === 'admin') {
-            allowedRoles = ['revisor', 'visor'];
+            allowedRoles = ['admin', 'revisor', 'visor'];
         } else if (currentRole === 'revisor') {
             allowedRoles = ['admin', 'visor'];
         } else if (currentRole === 'visor') {
@@ -2904,8 +3085,12 @@ async function loadCommentsDropdown(comentarios = null) {
             allowedRoles = [];
         }
 
-        // Filtrar comentarios basados en el rol del autor
+        // Filtrar comentarios basados en el rol del autor y excluir los del usuario actual
         filteredComments = comentarios.filter(comment => {
+            // Excluir comentarios del usuario actual
+            if (currentUser && comment.usuario_id === currentUser.id) {
+                return false;
+            }
             // Verificar si el comentario tiene datos de usuario unidos
             if (comment.usuarios && comment.usuarios.role) {
                 return allowedRoles.includes(comment.usuarios.role);
@@ -2924,18 +3109,39 @@ async function loadCommentsDropdown(comentarios = null) {
         if (hasJoinedData) {
             // Use joined data
             totalMostrados = filteredComments.length; // Contamos todos los filtrados, no solo los primeros 10
+            let lastSeenTimestamp = null;
+            try {
+                lastSeenTimestamp = localStorage.getItem('lastSeenCommentTimestamp');
+            } catch (e) {
+                console.warn('No se puede acceder a localStorage:', e);
+            }
+            
             filteredComments.slice(0, 10).forEach(comment => {
                 const tipoClass = `comment-type-${comment.tipo || 'revision'}`;
                 const tipoLabel = comment.tipo === 'aprobacion' ? 'Aprobación' :
                     comment.tipo === 'revision' ? 'Revisión' : 'Datos Incorrectos';
                 const fecha = new Date(comment.created_at).toLocaleDateString('es-ES');
                 const hora = new Date(comment.created_at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-                const usuarioNombre = comment.usuarios?.nombre || 'Usuario desconocido';
+                const usuarioNombre = comment.usuarios?.username || 'Usuario desconocido';
                 const folio = comment.fichas?.folio || 'N/A';
+                
+                // Determinar si es nuevo (no leído)
+                const isNew = !lastSeenTimestamp || new Date(comment.created_at) > new Date(lastSeenTimestamp);
+                
+                // Status visual: Gris si es nuevo, Azul si ya se vio
+                const statusColor = isNew ? '#999' : '#007bff'; // Gris para nuevo, Azul para visto
+                const statusIndicator = `<span style="display: inline-block; width: 10px; height: 10px; background-color: ${statusColor}; border-radius: 50%; margin-left: 8px;"></span>`;
+                
+                if (isNew) {
+                    console.log(`Comentario nuevo detectado: fecha=${comment.created_at}, lastSeen=${lastSeenTimestamp}, usuario=${usuarioNombre}`);
+                }
 
                 html += `
-                    <div class="comment-item" onclick="openFichaDetail('${comment.ficha_id || ''}')">
-                        <span class="comment-type ${tipoClass}">${tipoLabel}</span>
+                    <div class="comment-item ${isNew ? 'comment-new' : ''}" onclick="openFichaDetail('${comment.ficha_id || ''}')">
+                        <div style="display: flex; align-items: center;">
+                            <span class="comment-type ${tipoClass}">${tipoLabel}</span>
+                            ${statusIndicator}
+                        </div>
                         <div>${comment.texto || 'Sin texto'}</div>
                         <div class="comment-details">
                             <strong>Folio:</strong> ${folio} | 
@@ -2955,18 +3161,22 @@ async function loadCommentsDropdown(comentarios = null) {
 
                 const { data: usuarios, error: usuariosError } = await db()
                     .from('usuarios')
-                    .select('id, nombre, role');
+                    .select('id, username, role');
 
                 if (fichasError) console.error('Error fetching fichas:', fichasError);
                 if (usuariosError) console.error('Error fetching usuarios:', usuariosError);
 
                 // Create maps for quick lookup
                 const fichaLookupMap = new Map(fichas?.map(f => [f.id, f.folio]) || []);
-                const usuarioMap = new Map(usuarios?.map(u => [u.id, u.nombre]) || []);
+                const usuarioMap = new Map(usuarios?.map(u => [u.id, u.username]) || []);
                 const usuarioRoleMap = new Map(usuarios?.map(u => [u.id, u.role]) || []);
 
-                // Aplicar filtro de roles también en el fallback
+                // Aplicar filtro de roles también en el fallback y excluir los del usuario actual
                 filteredFallbackComments = comentarios.filter(comment => {
+                    // Excluir comentarios del usuario actual
+                    if (currentUser && comment.usuario_id === currentUser.id) {
+                        return false;
+                    }
                     const userRole = usuarioRoleMap.get(comment.usuario_id);
                     if (userRole && allowedRoles.includes(userRole)) {
                         return true;
@@ -2975,6 +3185,13 @@ async function loadCommentsDropdown(comentarios = null) {
                 });
 
                 totalMostrados = filteredFallbackComments.length;
+                let lastSeenTimestamp = null;
+                try {
+                    lastSeenTimestamp = localStorage.getItem('lastSeenCommentTimestamp');
+                } catch (e) {
+                    console.warn('No se puede acceder a localStorage:', e);
+                }
+                
                 filteredFallbackComments.slice(0, 10).forEach(comment => {
                     const tipoClass = `comment-type-${comment.tipo || 'revision'}`;
                     const tipoLabel = comment.tipo === 'aprobacion' ? 'Aprobación' :
@@ -2983,10 +3200,20 @@ async function loadCommentsDropdown(comentarios = null) {
                     const hora = new Date(comment.created_at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
                     const usuarioNombre = usuarioMap.get(comment.usuario_id) || 'Usuario desconocido';
                     const folio = fichaLookupMap.get(comment.ficha_id) || 'N/A';
+                    
+                    // Determinar si es nuevo (no leído)
+                    const isNew = !lastSeenTimestamp || new Date(comment.created_at) > new Date(lastSeenTimestamp);
+                    
+                    // Status visual: Gris si es nuevo, Azul si ya se vio
+                    const statusColor = isNew ? '#999' : '#007bff'; // Gris para nuevo, Azul para visto
+                    const statusIndicator = `<span style="display: inline-block; width: 10px; height: 10px; background-color: ${statusColor}; border-radius: 50%; margin-left: 8px;"></span>`;
 
                     html += `
-                        <div class="comment-item" onclick="openFichaDetail('${comment.ficha_id || ''}')">
-                            <span class="comment-type ${tipoClass}">${tipoLabel}</span>
+                        <div class="comment-item ${isNew ? 'comment-new' : ''}" onclick="openFichaDetail('${comment.ficha_id || ''}')">
+                            <div style="display: flex; align-items: center;">
+                                <span class="comment-type ${tipoClass}">${tipoLabel}</span>
+                                ${statusIndicator}
+                            </div>
                             <div>${comment.texto || 'Sin texto'}</div>
                             <div class="comment-details">
                                 <strong>Folio:</strong> ${folio} | 
@@ -3007,20 +3234,7 @@ async function loadCommentsDropdown(comentarios = null) {
     dropdown.innerHTML = html;
     console.log('Dropdown actualizado con', totalMostrados, 'comentarios (filtrados por rol)');
 
-    // Marcar los comentarios como leídos guardando el timestamp del más reciente
-    // Buscamos el comentario con fecha más reciente entre los filtrados
-    let latestFilteredComment = null;
-    
-    if (hasJoinedData && filteredComments.length > 0) {
-        latestFilteredComment = filteredComments[0]; // Ya están ordenados por fecha descendente
-    } else if (filteredFallbackComments && filteredFallbackComments.length > 0) {
-        latestFilteredComment = filteredFallbackComments[0];
-    }
-
-    if (latestFilteredComment) {
-        localStorage.setItem('lastSeenCommentTimestamp', latestFilteredComment.created_at);
-        console.log('Marcado como leído hasta:', latestFilteredComment.created_at);
-    }
+    // No actualizamos el timestamp aquí. Ya se actualizó en toggleMessagesDropdown al abrir el dropdown.
 }
 
 // ---- Load Existing PDFs ----
@@ -3196,3 +3410,44 @@ async function uploadAndOptimizePDFs(fichaId, files) {
         }
     }
 }
+
+// ---- Dynamic Island Logic ----
+function showDynamicIsland(message, type = 'info') {
+    const island = document.getElementById('dynamic-island');
+    const textElement = island.querySelector('.island-text');
+    
+    if (!island || !textElement) return;
+
+    // 1. Actualizar texto
+    textElement.textContent = message;
+    
+    // 2. Hacer visible la isla (si no lo es ya)
+    island.classList.add('visible');
+    
+    // 3. Pequeño delay para asegurar que la transición de aparición ocurra antes de expandir
+    setTimeout(() => {
+        island.classList.add('expanded');
+    }, 50);
+    
+    // 4. Auto-ocultar después de 3 segundos
+    setTimeout(() => {
+        island.classList.remove('expanded');
+        
+        // Esperar a que termine la animación de colapso antes de ocultar completamente
+        setTimeout(() => {
+            island.classList.remove('visible');
+            // Resetear texto
+            textElement.textContent = 'Notificaciones';
+        }, 400); // Tiempo de la transición CSS
+    }, 3000);
+}
+
+// Hook para conectar showToast con Dynamic Island
+const originalShowToast = showToast;
+showToast = function(message, type) {
+    // Llamar a la función original (toast visual)
+    originalShowToast(message, type);
+    
+    // Mostrar en la Dynamic Island
+    showDynamicIsland(message, type);
+};

@@ -1202,53 +1202,12 @@ textarea:focus {
     background: rgba(255, 255, 255, 0.9);
 }
 
-/* ---- Toasts ---- */
-.toast-container {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    z-index: 2000;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
 
-.toast {
-    padding: 12px 20px;
-    border-radius: 10px;
-    color: white;
-    font-size: 0.9rem;
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-    animation: slideIn 0.3s ease;
-}
-
-.toast.success {
-    background: var(--status-green);
-}
-
-.toast.error {
-    background: var(--status-red);
-}
-
-.toast.info {
-    background: var(--primary-color);
-}
-
-@keyframes slideIn {
-    from {
-        transform: translateX(100%);
-        opacity: 0;
-    }
-
-    to {
-        transform: translateX(0);
-        opacity: 1;
-    }
-}
 
 /* ---- Tutorial ---- */
 .tutorial-overlay {
-    background: rgba(125, 36, 71, 0.4);
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(10px);
 }
 
 .tutorial-content {
@@ -1932,5 +1891,90 @@ textarea:focus {
 .pdf-meta {
     font-size: 0.8rem;
     color: var(--text-muted);
+}
+
+/* ---- Tutorial Highlight ---- */
+.tutorial-highlight {
+    position: relative;
+    z-index: 1050; /* Asegura que esté por encima del overlay del modal */
+    box-shadow: 0 0 0 4px var(--primary-color), 0 0 20px rgba(125, 36, 71, 0.5) !important;
+    border-radius: var(--radius);
+    transition: box-shadow 0.3s ease;
+}
+
+/* ---- Dynamic Island ---- */
+.dynamic-island {
+    position: fixed;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 20px;  /* Tamaño mínimo invisible */
+    height: 20px;
+    background-color: #000;
+    border-radius: 20px;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.5s cubic-bezier(0.4, 0.0, 0.2, 1);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    cursor: pointer;
+    overflow: hidden;
+    pointer-events: none; /* No bloquea clics cuando está cerrada */
+    opacity: 0; /* Invisible por defecto */
+    transform: translateX(-50%) scale(0); /* Escala a cero */
+}
+
+/* Estado Visible (Cuando se va a mostrar algo) */
+.dynamic-island.visible {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+    width: 120px;  /* Tamaño normal visible */
+    height: 35px;
+}
+
+.dynamic-island.expanded {
+    pointer-events: auto; /* Permite clics cuando está expandida */
+}
+
+/* Estado Expandido (Cuando hay notificación) */
+.dynamic-island.expanded {
+    width: 280px;
+    height: 50px;
+    border-radius: 25px;
+    background-color: #000;
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+}
+
+/* Contenido interno */
+.island-content {
+    color: white;
+    font-size: 12px;
+    font-weight: 500;
+    opacity: 0;
+    transition: opacity 0.3s ease 0.1s; /* Retraso en la aparición del texto */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 90%;
+}
+
+/* Texto visible */
+.dynamic-island.visible .island-content,
+.dynamic-island.expanded .island-content {
+    opacity: 1;
+}
+
+/* Texto cuando está expandido */
+.dynamic-island.expanded .island-text {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+/* ---- Comentarios Nuevos ---- */
+.comment-item.comment-new {
+    background-color: rgba(125, 36, 71, 0.1); /* Un ligero fondo guinda */
+    border-left: 3px solid var(--primary-color);
 }
 
