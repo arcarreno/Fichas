@@ -1622,33 +1622,81 @@ function initDetailMap(ficha) {
     }
 }
 
+// ---- Delete Comment in Detail View ----
+async function deleteCommentInDetail(commentId, fichaId) {
+    // Verificar que el usuario sea administrador
+    if (!currentUser || currentUser.role !== 'admin') {
+        showToast('Solo los administradores pueden borrar comentarios', 'error');
+        return;
+    }
+
+    // Mostrar modal de confirmación
+    const confirmed = await showDeleteNotification('¿Estás seguro de que deseas borrar este comentario?');
+    
+    if (!confirmed) {
+        return;
+    }
+
+    try {
+        // Eliminar el comentario de la base de datos
+        const { error } = await db()
+            .from('comentarios')
+            .delete()
+            .eq('id', commentId);
+
+        if (error) throw error;
+
+        showToast('Comentario borrado exitosamente', 'success');
+
+        // Recargar los comentarios en la vista de detalles
+        await loadComments(fichaId);
+
+    } catch (err) {
+        console.error('Error al borrar comentario:', err);
+        showToast('Error al borrar el comentario', 'error');
+    }
+}
+
 // ---- Comments ----
 async function loadComments(fichaId) {
     const container = document.getElementById('comments-list');
     container.innerHTML = '<p>Cargando comentarios...</p>';
 
     try {
-        const { data: comments, error } = await db()
-            .from('comentarios')
-            .select('*, usuarios(nombre)')
-            .eq('ficha_id', fichaId)
-            .order('created_at', { ascending: false });
+        const [commentsResult, usuariosResult] = await Promise.all([
+            db().from('comentarios').select('*').eq('ficha_id', fichaId).order('created_at', { ascending: false }),
+            db().from('usuarios').select('id, username')
+        ]);
+
+        const comments = commentsResult.data;
+        const error = commentsResult.error;
+        const usuarios = usuariosResult.data || [];
 
         if (error || !comments || comments.length === 0) {
             container.innerHTML = '<p style="color:rgba(255,255,255,0.5)">Sin comentarios aún</p>';
             return;
         }
 
+        // Mapa de usuarios para acceso rápido
+        const userMap = new Map(usuarios.map(u => [u.id, u.username]));
+
         const tipoLabels = { aprobacion: 'Aprobación', revision: 'Revisión', datos_incorrectos: 'Datos Incorrectos' };
+        const isAdmin = currentUser && currentUser.role === 'admin';
+        
         container.innerHTML = comments.map(c => {
             const isCurrentUser = c.usuario_id === currentUser.id;
             const alignmentClass = isCurrentUser ? 'comment-right' : 'comment-left';
             const colorClass = isCurrentUser ? 'comment-current-user' : 'comment-other-user';
             
+            const onclickAttr = isAdmin ? `onclick="deleteCommentInDetail('${c.id}', '${fichaId}')"` : '';
+            const cursorStyle = isAdmin ? 'cursor: pointer;' : '';
+            const titleAttr = isAdmin ? 'title="Borrar comentario (Administrador)"' : '';
+            const userName = userMap.get(c.usuario_id) || 'Usuario';
+            
             return `
-                <div class="comment-card tipo-${c.tipo} ${alignmentClass} ${colorClass}">
+                <div class="comment-card tipo-${c.tipo} ${alignmentClass} ${colorClass}" ${onclickAttr} style="${cursorStyle}" ${titleAttr}>
                     <div class="comment-meta">
-                        <span>${c.usuarios?.nombre || 'Usuario'} - ${new Date(c.created_at).toLocaleString('es-MX')}</span>
+                        <span>${userName} - ${new Date(c.created_at).toLocaleString('es-MX')}</span>
                         <span class="comment-tipo tipo-${c.tipo}">${tipoLabels[c.tipo]}</span>
                     </div>
                     <div>${c.texto}</div>
@@ -1694,20 +1742,21 @@ async function handleSubmitComment() {
 
 // ---- Reports ----
 async function openReport() {
-    const tbody = document.getElementById('report-table-body');
-    tbody.innerHTML = '<tr><td colspan="6" style="padding:20px; text-align:center;">Cargando...</td></tr>';
+    const container = document.getElementById('report-pages-container');
+    if (!container) return;
+    
+    container.innerHTML = '<div style="padding:20px; text-align:center;">Cargando...</div>';
     openModal('modal-report');
 
     // Cargar imagen de fondo dinámicamente
-    const reportContainer = document.querySelector('.report-container');
+    const reportContainer = document.querySelector('.report-modal-container');
     if (reportContainer) {
         // Intentar diferentes rutas
         const possiblePaths = [
             'assets/Plantilla.png',
             './assets/Plantilla.png',
             '../assets/Plantilla.png',
-            `${window.location.origin}/assets/Plantilla.png`,
-            `file:///C:/Users/aranc/Documents/Sistema_Edgar/assets/Plantilla.png`
+            `${window.location.origin}/assets/Plantilla.png`
         ];
 
         let imagePath = '';
@@ -1715,7 +1764,7 @@ async function openReport() {
 
         function tryLoadImage(index) {
             if (index >= possiblePaths.length) {
-                console.log('Nose pudo cargar la imagen,l utilizams el color balnco como respaldo');
+                console.log('No se pudo cargar la imagen, usamos el color blanco como respaldo');
                 reportContainer.style.background = '#f8f9fa';
                 return;
             }
@@ -1742,44 +1791,89 @@ async function openReport() {
         const { data: fichas, error } = await db().from('fichas').select('*').order('created_at', { ascending: false });
         if (error) throw error;
 
-        tbody.innerHTML = fichas.map(f => {
-            // Determinar color de fila basado en porcentaje
-            let rowClass = '';
-            if (f.status_percent === 100) rowClass = 'estado-finalizado';
-            else if (f.status_percent >= 80) rowClass = 'estado-proceso';
-            else rowClass = 'estado-rezagado';
+        // Generar HTML paginado para la vista previa (5 filas por "página")
+        const rowsPerPage = 5;
+        let html = '';
+        
+        for (let i = 0; i < fichas.length; i += rowsPerPage) {
+            const pageFichas = fichas.slice(i, i + rowsPerPage);
+            
+            // Crear una tabla por página para la vista previa
+            html += `
+            <div class="report-page-preview">
+                <table class="report-table">
+                    <thead>
+                        <tr>
+                            <th>Tipo</th>
+                            <th>Expediente</th>
+                            <th>Ubicación</th>
+                            <th>Topografía</th>
+                            <th>Mecánica</th>
+                            <th>Obra/Proyecto</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+            
+            pageFichas.forEach(f => {
+                let rowClass = '';
+                if (f.status_percent === 100) rowClass = 'estado-finalizado';
+                else if (f.status_percent >= 80) rowClass = 'estado-proceso';
+                else rowClass = 'estado-rezagado';
 
-            // Obtener tipo del campo correspondiente
-            let tipo = f.tipo || 'N/A';
+                let tipo = f.tipo || 'N/A';
+                const expedienteValue = f.expediente || 0;
+                let circleColor = '#dc3545';
+                if (expedienteValue === 100) circleColor = '#28a745';
+                else if (expedienteValue >= 80) circleColor = '#ffc107';
 
-            // Determinar color del círculo de expediente
-            const expedienteValue = f.expediente || 0;
-            let circleColor = '#dc3545'; // Rojo por defecto
-            if (expedienteValue === 100) circleColor = '#28a745'; // Verde
-            else if (expedienteValue >= 80) circleColor = '#ffc107'; // Amarillo
+                // Obtener valores de topografía y mecánica directamente (pueden ser texto o booleanos)
+                let topografiaValor = f.topografia || 'No';
+                let mecanicaValor = f.mecanica || 'No';
+                
+                // Si son booleanos, convertirlos a texto
+                if (typeof topografiaValor === 'boolean') topografiaValor = topografiaValor ? 'Si' : 'No';
+                if (typeof mecanicaValor === 'boolean') mecanicaValor = mecanicaValor ? 'Si' : 'No';
+                
+                html += `
+                <tr class="${rowClass}">
+                    <td>${tipo}</td>
+                    <td>
+                        <div class="expediente-circle" style="background-color: ${circleColor};"></div>
+                        <span class="expediente-value">${expedienteValue}%</span>
+                    </td>
+                    <td>${f.calle || 'N/A'}</td>
+                    <td>${topografiaValor}</td>
+                    <td>${mecanicaValor}</td>
+                    <td>${f.concepto || 'N/A'}</td>
+                </tr>`;
+            });
+            
+            html += `
+                    </tbody>
+                </table>
+            </div>`;
+        }
 
-            return `
-            <tr class="${rowClass}">
-                <td>${tipo}</td>
-                <td>
-                    <div class="expediente-circle" style="background-color: ${circleColor};"></div>
-                    <span class="expediente-value">${expedienteValue}%</span>
-                </td>
-                <td>${f.calle || 'N/A'}</td>
-                <td>${f.topografia ? 'Si' : 'No'}</td>
-                <td>${f.mecanica ? 'Si' : 'No'}</td>
-                <td>${f.concepto || 'N/A'}</td>
-            </tr>`;
-        }).join('');
+        // Insertar las páginas en el contenedor
+        container.innerHTML = html;
+
     } catch (err) {
-        tbody.innerHTML = '<tr><td colspan="6" style="padding:20px; text-align:center;">Error inesperado al cargar el reporte</td></tr>';
+        container.innerHTML = '<div style="padding:20px; text-align:center;">Error inesperado al cargar el reporte</div>';
     }
 }
 
-function printReport() {
-    const tableElement = document.getElementById('report-table');
-    const tbody = tableElement.querySelector('tbody');
-    const rows = Array.from(tbody.querySelectorAll('tr'));
+async function printReport() {
+    // Obtener datos frescos de la base de datos para impresión
+    let fichas = [];
+    try {
+        const { data, error } = await db().from('fichas').select('*').order('created_at', { ascending: false });
+        if (error) throw error;
+        fichas = data || [];
+    } catch (err) {
+        console.error('Error obteniendo fichas para impresión:', err);
+        showToast('Error al obtener datos para impresión', 'error');
+        return;
+    }
 
     const w = window.open('', '_blank');
     const styles = `
@@ -1795,7 +1889,7 @@ function printReport() {
             background-color: #fff;
             width: 8.89in;
             height: 5in;
-            overflow: hidden;
+            overflow: visible;
         }
         .page {
             width: 100%;
@@ -1808,7 +1902,7 @@ function printReport() {
             page-break-after: always;
             display: flex;
             flex-direction: column;
-            overflow: hidden;
+            overflow: visible;
         }
         .table-container {
             flex: 1;
@@ -1816,8 +1910,8 @@ function printReport() {
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding: 30px;
-            overflow: hidden;
+            padding: 25px 30px 30px 30px;
+            overflow: visible;
         }
         .report-title {
             text-align: center;
@@ -1829,25 +1923,31 @@ function printReport() {
             flex-shrink: 0;
         }
         .table-wrapper {
-            transform: scale(0.7);
+            transform: scale(0.8);
             transform-origin: center;
-            width: 143%;
-            height: 143%;
+            width: 120%;
+            height: 120%;
             display: flex;
             align-items: center;
             justify-content: center;
-            overflow: hidden;
+            overflow: visible;
         }
         table {
             width: 100%;
-            border-collapse: collapse;
-            font-size: 14px;
+            border-collapse: separate;
+            border-spacing: 0;
+            font-size: 13px;
             margin: 0 auto;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            overflow: hidden;
         }
         th, td {
-            border: 1px solid #ddd;
-            padding: 8px 10px;
+            border: none;
+            padding: 12px 15px;
             text-align: center;
+            border-bottom: 1px solid #e0e0e0;
+            border-right: 1px solid #f0f0f0;
         }
         td:nth-child(6) {
             text-align: left;
@@ -1855,12 +1955,28 @@ function printReport() {
             overflow-wrap: break-word;
         }
         th {
-            background-color: #7d2447;
+            background: linear-gradient(to bottom, #7d2447, #5a1a33);
             color: white;
-            font-weight: bold;
+            font-weight: 600;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 2px solid #5a1a33;
+            border-right: 1px solid #5a1a33;
+            position: relative;
+        }
+        th:last-child {
+            border-right: none;
         }
         tr:nth-child(even) {
-            background: rgba(255, 255, 255, 0.7);
+            background-color: #f8f9fa;
+        }
+        tr:hover {
+            background-color: #e9ecef;
+            transition: background-color 0.2s ease;
+        }
+        tr:last-child td {
+            border-bottom: none;
         }
         .estado-finalizado { background-color: #d4edda !important; }
         .estado-proceso { background-color: #fff3cd !important; }
@@ -1887,14 +2003,67 @@ function printReport() {
                 print-color-adjust: exact !important;
             }
         }
+        
+        /* Responsividad para móvil */
+        @media screen and (max-width: 768px) {
+            body {
+                width: 100%;
+                height: auto;
+                overflow-y: auto;
+            }
+            .page {
+                height: auto;
+                min-height: 100vh;
+                background-size: contain;
+            }
+            .table-wrapper {
+                transform: scale(1);
+                width: 100%;
+                height: auto;
+                overflow-x: auto;
+            }
+            table {
+                font-size: 12px;
+            }
+            th, td {
+                padding: 4px 6px;
+            }
+        }
     </style>`;
 
     // Crear contenido para múltiples páginas
     const maxRowsPerPage = 5; // Exactamente 5 filas por página (plantilla)
     let pagesHTML = '';
 
-    for (let i = 0; i < rows.length; i += maxRowsPerPage) {
-        const pageRows = rows.slice(i, i + maxRowsPerPage);
+    for (let i = 0; i < fichas.length; i += maxRowsPerPage) {
+        const pageFichas = fichas.slice(i, i + maxRowsPerPage);
+        
+        const tableRowsHTML = pageFichas.map(f => {
+            let rowClass = '';
+            if (f.status_percent === 100) rowClass = 'estado-finalizado';
+            else if (f.status_percent >= 80) rowClass = 'estado-proceso';
+            else rowClass = 'estado-rezagado';
+
+            let tipo = f.tipo || 'N/A';
+            const expedienteValue = f.expediente || 0;
+            let circleColor = '#dc3545';
+            if (expedienteValue === 100) circleColor = '#28a745';
+            else if (expedienteValue >= 80) circleColor = '#ffc107';
+
+            return `
+            <tr class="${rowClass}">
+                <td>${tipo}</td>
+                <td>
+                    <div class="expediente-circle" style="background-color: ${circleColor};"></div>
+                    <span class="expediente-value">${expedienteValue}%</span>
+                </td>
+                <td>${f.calle || 'N/A'}</td>
+                <td>${f.topografia ? 'Si' : 'No'}</td>
+                <td>${f.mecanica ? 'Si' : 'No'}</td>
+                <td>${f.concepto || 'N/A'}</td>
+            </tr>`;
+        }).join('');
+
         const tableHTML = `
         <table class="report-table">
             <thead>
@@ -1908,30 +2077,13 @@ function printReport() {
                 </tr>
             </thead>
             <tbody>
-                ${pageRows.map(row => row.outerHTML).join('')}
+                ${tableRowsHTML}
             </tbody>
         </table>`;
 
-        // Encabezado fuera de la plantilla (posición fija superior)
-        const headerHTML = `
-        <div style="position: fixed; top: 10px; left: 10px; z-index: 20; background: rgba(255,255,255,0.8); padding: 5px 10px; border-radius: 5px; display: flex; align-items: center; gap: 10px;">
-            <span style="font-weight: bold; color: #7d2447; font-size: 16px;">Todas las Fichas ${i > 0 ? `(Página ${Math.floor(i / maxRowsPerPage) + 1})` : ''}</span>
-            <button onclick="window.print()" style="background: #7d2447; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; font-size: 14px;">
-                <i class="fas fa-print"></i> Imprimir
-            </button>
-        </div>`;
-
-        // Título centrado dentro de la plantilla
-        const titleHTML = `
-        <div class="report-title">
-            REPORTE GENERAL
-        </div>`;
-
         pagesHTML += `
-        ${headerHTML}
         <div class="page">
             <div class="table-container">
-                ${titleHTML}
                 <div class="table-wrapper">
                     ${tableHTML}
                 </div>
@@ -1943,102 +2095,209 @@ function printReport() {
     <html>
     <head>
         <title>Reporte General</title>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
         ${styles}
     </head>
     <body>
+        <div style="position: fixed; top: 10px; left: 10px; z-index: 1000; background: rgba(0,0,0,0.7); padding: 8px 12px; border-radius: 5px; display: flex; align-items: center; gap: 10px; color: white;">
+            <span style="font-weight: bold; font-size: 14px;">Reporte General</span>
+            <button onclick="window.print()" style="background: #fff; color: #333; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; font-size: 14px;">
+                <i class="fas fa-print"></i> Imprimir
+            </button>
+        </div>
         ${pagesHTML}
     </body>
     </html>`);
     w.document.close();
-    w.print();
+    // No ejecutamos print automáticamente para permitir revisión
+}
+
+// Función para cargar scripts dinámicamente
+function loadScript(src) {
+    return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = src;
+        script.onload = () => resolve();
+        script.onerror = () => reject(new Error(`Error cargando ${src}`));
+        document.head.appendChild(script);
+    });
+}
+
+// Función para convertir imagen a base64
+function imageToBase64(imgPath) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = 'Anonymous'; // Para evitar problemas de CORS
+        img.onload = function() {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+            const dataURL = canvas.toDataURL('image/png');
+            resolve(dataURL);
+        };
+        img.onerror = reject;
+        img.src = imgPath;
+    });
 }
 
 // ---- Export to PowerPoint ----
-function exportToPowerPoint() {
-    const tableElement = document.getElementById('report-table');
-    const tbody = tableElement.querySelector('tbody');
-    const rows = Array.from(tbody.querySelectorAll('tr'));
+async function exportToPowerPoint() {
+    try {
+        // Verificar si PptxGenJS está cargado
+        if (typeof PptxGenJS === 'undefined') {
+            showToast('Librería de PowerPoint no cargada', 'error');
+            console.error('PptxGenJS no definido');
+            return;
+        }
 
-    // Crear contenido HTML para PowerPoint
-    let tableRowsHTML = '';
-    rows.forEach(row => {
-        tableRowsHTML += row.outerHTML;
-    });
+        // Obtener datos frescos de la base de datos
+        const { data: fichas, error } = await db().from('fichas').select('*').order('created_at', { ascending: false });
+        if (error) throw error;
+        if (!fichas || fichas.length === 0) {
+            showToast('No hay fichas para exportar', 'warning');
+            return;
+        }
 
-    const pptContent = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="UTF-8">
-        <title>Reporte General - PowerPoint</title>
-        <style>
-            body {
-                font-family: 'Arial', sans-serif;
-                margin: 20px;
-                background: white;
-            }
-            h1 {
-                color: #7d2447;
-                text-align: center;
-                margin-bottom: 30px;
-            }
-            table {
-                width: 100%;
-                border-collapse: collapse;
-                margin: 0 auto;
-                page-break-inside: avoid;
-            }
-            th, td {
-                border: 1px solid #ddd;
-                padding: 10px;
-                text-align: center;
-                font-size: 14px;
-            }
-            th {
-                background-color: #7d2447;
-                color: white;
-                font-weight: bold;
-            }
-            tr:nth-child(even) {
-                background-color: #f9f9f9;
-            }
-            .page-break {
-                page-break-before: always;
-            }
-        </style>
-    </head>
-    <body>
-        <h1>REPORTE GENERAL</h1>
-        <table>
-            <thead>
-                <tr>
-                    <th>Tipo</th>
-                    <th>Expediente</th>
-                    <th>Ubicación</th>
-                    <th>Topografía</th>
-                    <th>Mecánica</th>
-                    <th>Obra/Proyecto</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${tableRowsHTML}
-            </tbody>
-        </table>
-    </body>
-    </html>`;
+        // 1. Create a new Presentation
+        let pres = new PptxGenJS();
+        
+        // Configurar diseño de la diapositiva (16:9)
+        pres.layout = 'LAYOUT_16x9';
 
-    // Crear blob y descargar archivo
-    const blob = new Blob([pptContent], { type: 'application/vnd.ms-powerpoint' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'Reporte_General.ppt';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+        // Cabeceras de la tabla
+        const headers = ['Tipo', 'Expediente', 'Ubicación', 'Topografía', 'Mecánica', 'Obra/Proyecto'];
 
-    showToast('Archivo PowerPoint exportado exitosamente', 'success');
+        // 5 filas por página
+        const rowsPerPage = 5;
+        const totalPages = Math.ceil(fichas.length / rowsPerPage);
+
+        // Cargar imagen de fondo (Plantilla.png)
+        let backgroundImage = null;
+        let backgroundImageLoaded = false;
+        try {
+            // Intentar cargar la imagen desde las rutas posibles
+            const possiblePaths = [
+                'assets/Plantilla.png',
+                './assets/Plantilla.png',
+                '../assets/Plantilla.png',
+                `${window.location.origin}/assets/Plantilla.png`
+            ];
+            
+            for (const path of possiblePaths) {
+                try {
+                    backgroundImage = await imageToBase64(path);
+                    console.log('Imagen de fondo cargada:', path);
+                    backgroundImageLoaded = true;
+                    break;
+                } catch (e) {
+                    console.log('No se pudo cargar:', path, e);
+                }
+            }
+            
+            if (!backgroundImageLoaded) {
+                console.error('No se pudo cargar ninguna imagen de fondo. Verifica que exista assets/Plantilla.png');
+                showToast('No se encontró la imagen de fondo. Exportando sin imagen...', 'warning');
+            }
+        } catch (err) {
+            console.error('Error al cargar imagen de fondo:', err);
+            showToast('Error al cargar la imagen de fondo', 'error');
+        }
+
+        for (let i = 0; i < fichas.length; i += rowsPerPage) {
+            const pageFichas = fichas.slice(i, i + rowsPerPage);
+            
+            // 2. Add a Slide
+            let slide = pres.addSlide();
+            
+            // Añadir imagen de fondo si está disponible
+            if (backgroundImage) {
+                slide.addImage({
+                    data: backgroundImage,
+                    x: 0,
+                    y: 0,
+                    w: 10,
+                    h: 5.62, // Proporción 16:9
+                    sizing: { type: 'cover', w: 10, h: 5.62 }
+                });
+            }
+            
+            // 3. Add objects to the Slide
+            // NOTA: Quitamos el encabezado "REPORTE GENERAL"
+            
+            // Crear datos para la tabla
+            const tableData = [];
+            
+            // Añadir cabeceras
+            tableData.push(headers.map(h => ({ 
+                text: h, 
+                options: { 
+                    bold: true, 
+                    fill: '7d2447',
+                    color: 'FFFFFF',
+                    align: 'center',
+                    fontSize: 8,
+                    fontFace: 'Poppins',
+                    border: { type: 'solid', pt: 0.5, color: 'CCCCCC' }
+                } 
+            })));
+            
+            // Añadir filas
+            pageFichas.forEach((f, rowIndex) => {
+                const expedienteValue = f.expediente || 0;
+                let topografiaValor = f.topografia || 'No';
+                let mecanicaValor = f.mecanica || 'No';
+                
+                if (typeof topografiaValor === 'boolean') topografiaValor = topografiaValor ? 'Si' : 'No';
+                if (typeof mecanicaValor === 'boolean') mecanicaValor = mecanicaValor ? 'Si' : 'No';
+                
+                // Fondo blanco para todas las filas
+                const rowBgColor = 'FFFFFF';
+                
+                // Color del círculo de expediente
+                let circleColor = 'DC3545';
+                if (expedienteValue === 100) circleColor = '28A745';
+                else if (expedienteValue >= 80) circleColor = 'FFC107';
+                
+                const expedienteText = `\u25CF ${expedienteValue}%`;
+                
+                const rowData = [
+                    { text: f.tipo || 'N/A', options: { align: 'center', fontSize: 8, fontFace: 'Poppins', fill: rowBgColor } },
+                    { text: expedienteText, options: { align: 'center', color: circleColor, bold: true, fontSize: 8, fontFace: 'Poppins', fill: rowBgColor } },
+                    { text: f.calle || 'N/A', options: { align: 'center', fontSize: 8, fontFace: 'Poppins', fill: rowBgColor } },
+                    { text: topografiaValor, options: { align: 'center', fontSize: 8, fontFace: 'Poppins', fill: rowBgColor } },
+                    { text: mecanicaValor, options: { align: 'center', fontSize: 8, fontFace: 'Poppins', fill: rowBgColor } },
+                    { text: f.concepto || 'N/A', options: { align: 'left', fontSize: 8, fontFace: 'Poppins', fill: rowBgColor } }
+                ];
+                tableData.push(rowData);
+            });
+
+            // Anchos según regla del usuario (cm), escalados a 9.0" (márgenes 0.5" por lado)
+            // Tipo +0.5cm, Topografía +0.5cm, compensando en Ubicación
+            const colW = [0.59, 0.86, 1.85, 1.02, 0.86, 4.02];
+            
+            slide.addTable(tableData, {
+                x: 0.5,
+                y: 1.0,
+                w: 9.0,
+                colW: colW,
+                rowHeight: 0.45,
+                border: { type: 'solid', pt: 0.5, color: 'CCCCCC' },
+                autoPage: false
+            });
+        }
+
+        // 4. Save the Presentation
+        const fileName = `Reporte_General_${new Date().toISOString().split('T')[0]}.pptx`;
+        pres.writeFile({ fileName: fileName });
+
+        showToast('PowerPoint exportado exitosamente', 'success');
+
+    } catch (err) {
+        console.error('Error exportando PowerPoint:', err);
+        showToast('Error al exportar PowerPoint', 'error');
+    }
 }
 
 // ---- Export Functions ----
@@ -2087,9 +2346,9 @@ function exportToPDF(buttonId) {
             f.tiempo_ejecucion || 'N/A',
             f.longitud || 'N/A',
             f.m2 || 'N/A',
-            f.calle || 'N/A',
-            f.lng || 'N/A',
+            (f.calle || 'N/A').substring(0, 25) + (f.calle && f.calle.length > 25 ? '...' : ''),
             f.lat || 'N/A',
+            f.lng || 'N/A',
             f.topografia || 'N/A',
             f.mecanica || 'N/A',
             f.gas || 'N/A',
@@ -2103,11 +2362,11 @@ function exportToPDF(buttonId) {
             f.expediente || 'N/A'
         ]);
 
-        // Cabeceras de la tabla
+        // Cabeceras de la tabla (en una sola fila, sin espaciado)
         const tableHeaders = [
             'No.', 'No-SIFAIS', 'TIPO', 'OBRA/PROYECTO', 'TIEMPO EJEC.', 'LONGITUD', 'M2',
-            'CALLE', 'LONG.', 'LAT.', 'TOPOGR.', 'MEC.', 'GAS', 'AGUA', 'DREN.',
-            'ALUM.', 'VÍA CIC.', 'ZAP', 'COSTO', 'DEFINICIÓN', 'EXPED.'
+            'CALLE', 'LAT.', 'LONG.', 'TOPOGR.', 'MEC.', 'GAS', 'AGUA', 'DREN.',
+            'ALUM.', 'VIA CIC.', 'ZAP', 'COSTO', 'DEFINICION', 'EXPED.'
         ];
 
         // Generar tabla
@@ -2115,42 +2374,51 @@ function exportToPDF(buttonId) {
             head: [tableHeaders],
             body: tableData,
             startY: 30,
-            theme: 'striped',
+            theme: 'grid',
             headStyles: {
                 fillColor: [125, 36, 71],
                 textColor: 255,
-                fontStyle: 'bold'
+                fontStyle: 'bold',
+                fontSize: 6,
+                cellPadding: 1,
+                halign: 'center',
+                valign: 'middle',
+                lineWidth: 0.1,
+                lineColor: [200, 200, 200]
             },
             alternateRowStyles: {
-                fillColor: [240, 240, 240]
+                fillColor: [245, 245, 245]
             },
             margin: { top: 30 },
             styles: {
-                fontSize: 7,
-                cellPadding: 2
+                fontSize: 6,
+                cellPadding: 1,
+                halign: 'center',
+                valign: 'middle',
+                overflow: 'ellipsize'
             },
             columnStyles: {
-                0: { cellWidth: 10 }, // No.
-                1: { cellWidth: 15 }, // No-SIFAIS
-                2: { cellWidth: 12 }, // TIPO
-                3: { cellWidth: 30 }, // CONCEPTO
-                4: { cellWidth: 15 }, // TIEMPO EJEC.
-                5: { cellWidth: 12 }, // LONGITUD
-                6: { cellWidth: 10 }, // M2
-                7: { cellWidth: 15 }, // CALLE
-                8: { cellWidth: 12 }, // LONG.
-                9: { cellWidth: 12 }, // LAT.
-                10: { cellWidth: 10 }, // TOPOGR.
-                11: { cellWidth: 10 }, // MEC.
-                12: { cellWidth: 10 }, // GAS
-                13: { cellWidth: 10 }, // AGUA
-                14: { cellWidth: 10 }, // DREN.
-                15: { cellWidth: 10 }, // ALUM.
-                16: { cellWidth: 12 }, // VÍA CIC.
-                17: { cellWidth: 10 }, // ZAP
-                18: { cellWidth: 15 }, // COSTO
-                19: { cellWidth: 25 }, // DEFINICIÓN
-                20: { cellWidth: 10 }  // EXPED.
+                0: { cellWidth: 8 },  // No.
+                1: { cellWidth: 14 }, // No-SIFAIS
+                2: { cellWidth: 10 }, // TIPO
+                3: { cellWidth: 35, halign: 'left' }, // OBRA/PROYECTO
+                4: { cellWidth: 14 }, // TIEMPO EJEC.
+                5: { cellWidth: 10 }, // LONGITUD
+                6: { cellWidth: 8 },  // M2
+                7: { cellWidth: 22, halign: 'left', overflow: 'ellipsize' }, // CALLE
+                8: { cellWidth: 10 }, // LAT.
+                9: { cellWidth: 10 }, // LONG.
+                10: { cellWidth: 9 }, // TOPOGR.
+                11: { cellWidth: 9 }, // MEC.
+                12: { cellWidth: 8 }, // GAS
+                13: { cellWidth: 8 }, // AGUA
+                14: { cellWidth: 9 }, // DREN.
+                15: { cellWidth: 9 }, // ALUM.
+                16: { cellWidth: 10 }, // VIA CIC.
+                17: { cellWidth: 8 }, // ZAP
+                18: { cellWidth: 14 }, // COSTO
+                19: { cellWidth: 25, halign: 'left', overflow: 'ellipsize' }, // DEFINICION
+                20: { cellWidth: 9 }  // EXPED.
             }
         });
 
@@ -2194,7 +2462,7 @@ function exportToExcel(buttonId) {
         }
 
         // Preparar datos para Excel
-        const tableData = fichas.map((f, index) => ({
+        const excelData = fichas.map((f, index) => ({
             'No.': index + 1,
             'No-SIFAIS': f.sifais || 'N/A',
             'TIPO': f.tipo || 'N/A',
@@ -2203,8 +2471,8 @@ function exportToExcel(buttonId) {
             'LONGITUD': f.longitud || 'N/A',
             'M2': f.m2 || 'N/A',
             'CALLE': f.calle || 'N/A',
-            'LONGITUD (Lng)': f.lng || 'N/A',
             'LATITUD (Lat)': f.lat || 'N/A',
+            'LONGITUD (Lng)': f.lng || 'N/A',
             'TOPOGRAFIA': f.topografia || 'N/A',
             'MECANICA': f.mecanica || 'N/A',
             'GAS': f.gas || 'N/A',
@@ -2221,11 +2489,36 @@ function exportToExcel(buttonId) {
         // Crear libro de trabajo
         const wb = XLSX.utils.book_new();
 
-        // Crear hoja
-        const ws = XLSX.utils.json_to_sheet(tableData);
+        // Preparar datos para Excel
+        const tableData = fichas.map((f, index) => ({
+            'No.': index + 1,
+            'No-SIFAIS': f.sifais || 'N/A',
+            'TIPO': f.tipo || 'N/A',
+            'OBRA/PROYECTO': f.concepto || 'Sin concepto',
+            'TIEMPO EJECUCION': f.tiempo_ejecucion || 'N/A',
+            'LONGITUD': f.longitud || 'N/A',
+            'M2': f.m2 || 'N/A',
+            'CALLE': f.calle || 'N/A',
+            'LONGITUD (Lng)': f.lng || 'N/A',
+            'LATITUD (Lat)': f.lat || 'N/A',
+            'TOPOGRAFIA': f.topografia || 'N/A',
+            'MECANICA': f.mecanica || 'N/A',
+            'GAS': f.gas || 'N/A',
+            'AGUA': f.agua || 'N/A',
+            'DRENAJE': f.drenaje || 'N/A',
+            'ALUMBRADO': f.alumbrado || 'N/A',
+            'VIA CICLISTA': f.via_ciclista || 'N/A',
+            'ZAP': f.zap || 'N/A',
+            'COSTO PARAMETRICO': f.costo_parametrico || 'N/A',
+            'DEFINICION': f.definicion || 'N/A',
+            'EXPEDIENTE': f.expediente || 'N/A'
+        }));
+
+        // Crear hoja desde JSON
+        const ws = XLSX.utils.json_to_sheet(excelData);
 
         // Ajustar anchos de columna
-        const columnWidths = [
+        ws['!cols'] = [
             { wch: 5 },  // No.
             { wch: 15 }, // No-SIFAIS
             { wch: 10 }, // TIPO
@@ -2234,8 +2527,8 @@ function exportToExcel(buttonId) {
             { wch: 12 }, // LONGITUD
             { wch: 8 },  // M2
             { wch: 20 }, // CALLE
-            { wch: 12 }, // LONGITUD
             { wch: 12 }, // LATITUD
+            { wch: 12 }, // LONGITUD
             { wch: 10 }, // TOPOGRAFIA
             { wch: 10 }, // MECANICA
             { wch: 8 },  // GAS
@@ -2245,13 +2538,27 @@ function exportToExcel(buttonId) {
             { wch: 12 }, // VIA CICLISTA
             { wch: 10 }, // ZAP
             { wch: 20 }, // COSTO PARAMETRICO
-            { wch: 40 }, // DEFINICIÓN
+            { wch: 40 }, // DEFINICION
             { wch: 10 }  // EXPEDIENTE
         ];
-        ws['!cols'] = columnWidths;
+
+        // Estilo encabezado (guinda con letras blancas, Poppins)
+        const headerStyle = {
+            font: { name: 'Poppins', sz: 11, bold: true, color: { rgb: 'FFFFFFFF' } },
+            fill: { fgColor: { rgb: 'FF7D2447' } },
+            alignment: { horizontal: 'center', vertical: 'center' }
+        };
+
+        // Aplicar estilo a cada celda del encabezado (fila 1)
+        const headerKeys = Object.keys(excelData[0]);
+        headerKeys.forEach((key, colIndex) => {
+            const cellRef = XLSX.utils.encode_cell({ r: 0, c: colIndex });
+            if (!ws[cellRef].s) ws[cellRef].s = {};
+            ws[cellRef].s = headerStyle;
+        });
 
         // Agregar la hoja al libro
-        XLSX.utils.book_append_sheet(wb, ws, 'Fichas Técnicas');
+        XLSX.utils.book_append_sheet(wb, ws, 'Fichas Tecnicas');
 
         // Descargar archivo
         const fileName = `Fichas_Tecnicas_${perfil}_${new Date().toISOString().split('T')[0]}.xlsx`;
@@ -3136,7 +3443,7 @@ async function loadCommentsDropdown(comentarios = null) {
                     console.log(`Comentario nuevo detectado: fecha=${comment.created_at}, lastSeen=${lastSeenTimestamp}, usuario=${usuarioNombre}`);
                 }
 
-                html += `
+                 html += `
                     <div class="comment-item ${isNew ? 'comment-new' : ''}" onclick="openFichaDetail('${comment.ficha_id || ''}')">
                         <div style="display: flex; align-items: center;">
                             <span class="comment-type ${tipoClass}">${tipoLabel}</span>

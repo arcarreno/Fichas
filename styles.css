@@ -1179,6 +1179,7 @@ textarea:focus {
     border-collapse: collapse;
     color: var(--text-dark);
     font-size: 14px;
+    background: #ffffff; /* Fondo blanco para la tabla */
 }
 
 .report-table th,
@@ -1250,6 +1251,188 @@ textarea:focus {
 
 /* ---- Responsive ---- */
 
+/* Report Modal Responsiveness */
+.report-modal-container {
+    background-color: #fff !important;
+}
+
+/* Estilos para la vista previa de páginas en el modal */
+#report-pages-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    width: 100%;
+    padding: 10px;
+}
+
+.report-page-preview {
+    border: none;
+    background: transparent;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: none;
+    margin-top: 1px;
+    display: inline-block;
+    width: 100%;
+    padding-top: 60px;
+}
+
+.report-page-preview table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    background: transparent;
+}
+
+.report-page-preview th,
+.report-page-preview td {
+    padding: 10px 12px;
+    text-align: center;
+    border-bottom: 1px solid #eee;
+}
+
+.report-page-preview td {
+    background: rgba(255,255,255,0.85);
+}
+
+.report-page-preview th {
+    background-color: var(--primary-color);
+    color: white;
+    font-weight: bold;
+    padding-top: 11px;
+}
+
+.report-page-preview tr:nth-child(even) {
+    background: rgba(255,255,255,0.7);
+}
+
+/* Círculos de expediente en vista previa */
+.report-page-preview .expediente-circle {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 5px;
+    vertical-align: middle;
+    border: 1px solid #ccc;
+}
+
+.report-page-preview .expediente-value {
+    font-weight: bold;
+}
+
+/* ---- Pantallas grandes (1400px+) ---- */
+@media screen and (min-width: 1400px) {
+    .report-modal-container {
+        width: 90vw !important;
+        max-width: 1600px !important;
+        height: auto !important;
+        max-height: 90vh !important;
+        aspect-ratio: 16 / 9;
+    }
+    
+    #report-pages-container {
+        padding: 15px;
+    }
+    
+    .report-page-preview table {
+        font-size: 15px;
+    }
+    
+    .report-page-preview th,
+    .report-page-preview td {
+        padding: 12px 14px;
+    }
+}
+
+/* ---- Monitores grandes 24"+ (1760px+) ---- */
+@media screen and (min-width: 1760px) {
+    .report-page-preview {
+        padding-top: 173px !important; /* 1.97 pulgadas de margen superior */
+    }
+}
+
+/* ---- Tablets (768px - 1024px) ---- */
+@media screen and (min-width: 768px) and (max-width: 1024px) {
+    .report-modal-container {
+        width: 95% !important;
+        height: auto !important;
+        max-height: 85vh !important;
+        aspect-ratio: auto;
+    }
+    
+    .report-page-preview table {
+        font-size: 12px;
+    }
+    
+    .report-page-preview th,
+    .report-page-preview td {
+        padding: 8px 10px;
+    }
+    
+    .report-page-preview .expediente-circle {
+        width: 10px;
+        height: 10px;
+    }
+}
+
+/* ---- Móviles (max-width: 767px) ---- */
+@media screen and (max-width: 767px) {
+    .report-modal-container {
+        width: 100% !important;
+        height: auto !important;
+        max-height: 90vh !important;
+        border-radius: 0 !important;
+        aspect-ratio: auto;
+    }
+    
+    #report-pages-container {
+        padding: 5px;
+    }
+    
+    .report-page-preview {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .report-page-preview table {
+        font-size: 10px;
+        min-width: 600px;
+    }
+    
+    .report-page-preview th,
+    .report-page-preview td {
+        padding: 5px 6px;
+    }
+    
+    .report-page-preview .expediente-circle {
+        width: 8px;
+        height: 8px;
+        margin-right: 3px;
+    }
+}
+
+/* ---- Móviles pequeños (max-width: 480px) ---- */
+@media screen and (max-width: 480px) {
+    .report-modal-container {
+        width: 100% !important;
+        max-height: 95vh !important;
+    }
+    
+    .report-page-preview table {
+        font-size: 9px;
+    }
+    
+    .report-page-preview th,
+    .report-page-preview td {
+        padding: 4px 4px;
+    }
+    
+    .report-page-preview th {
+        padding-top: 5px;
+        font-size: 8px;
+    }
+}
 
 /* ---- Loading Screen ---- */
 .loading-view-fullscreen {

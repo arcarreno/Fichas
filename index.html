@@ -15,8 +15,8 @@
     <!-- jsPDF and AutoTable -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
-    <!-- SheetJS for Excel -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- SheetJS with styles support -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.min.js"></script>
 </head>
 
 <body>
@@ -616,8 +616,8 @@
     </div>
 
     <!-- ============================================
-       MODAL: REPORTE GENERAL
-       ============================================ -->
+        MODAL: REPORTE GENERAL
+        ============================================ -->
     <div class="modal-overlay" id="modal-report">
         <!-- Controles fuera de la plantilla -->
         <div style="position: absolute; top: 10px; right: 10px; z-index: 20;">
@@ -625,7 +625,7 @@
                 style="background: rgba(0,0,0,0.5); border: none; color: white; font-size: 20px; width: 30px; height: 30px; padding: 0;">&times;</button>
         </div>
         <div
-            style="position: absolute; top: 10px; left: 10px; z-index: 20; display: flex; align-items: center; gap: 10px;">
+            style="position: absolute; top: 10px; left: 10px; z-index: 20; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
             <h3 style="color: white; text-shadow: 2px 2px 4px black; margin: 0; font-size: 18px; white-space: nowrap;">
                 Todas las Fichas</h3>
             <button class="btn btn-sm btn-secondary" id="btn-print-report"
@@ -639,38 +639,17 @@
         </div>
 
         <!-- Plantilla y tabla -->
-        <div class="modal"
-            style="width: 1280px; height: 720px; max-width: 100%; max-height: 100%; background: url('assets/Plantilla.png') no-repeat center center; background-size: cover; border: none; margin: auto; position: absolute; top: 50px; bottom: 0; left: 0; right: 0;">
-            <div
-                style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px;">
-                <!-- Título centrado arriba de la tabla -->
-                <div style="text-align: center; margin-bottom: 15px;">
-                    <h3
-                        style="color: white; text-shadow: 2px 2px 4px black; margin: 0; font-size: 22px; font-weight: bold;">
-                        REPORTE GENERAL
-                    </h3>
-                </div>
-                <!-- Tabla -->
-                <div
-                    style="transform: scale(0.8); transform-origin: center; width: 125%; height: 125%; display: flex; align-items: center; justify-content: center;">
-                    <table class="report-table" id="report-table" style="margin: 0 auto; width: 100%;">
-                        <thead>
-                            <tr>
-                                <th>Tipo</th>
-                                <th>Expediente</th>
-                                <th>Ubicación</th>
-                                <th>Topografía</th>
-                                <th>Mecánica</th>
-                                <th>Obra/Proyecto</th>
-                            </tr>
-                        </thead>
-                        <tbody id="report-table-body"></tbody>
-                    </table>
+        <div class="modal report-modal-container"
+            style="width: 90%; max-width: 1280px; max-height: 90vh; background: url('assets/Plantilla.png') no-repeat center center; background-size: cover; border: none; margin: auto; display: flex; flex-direction: column; justify-content: center; align-items: center; overflow: hidden; aspect-ratio: 16 / 9;">
+            <!-- Contenedor de páginas con scroll -->
+            <div class="table-scroll-container"
+                style="flex: 1; width: 90%; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; overflow-y: auto; padding: 10px 0;">
+                <!-- Contenedor dinámico para las páginas del reporte -->
+                <div id="report-pages-container" style="width: 100%;">
+                    <!-- Las páginas se insertarán aquí dinámicamente -->
                 </div>
             </div>
         </div>
-    </div>
-    </div>
     </div>
 
     <!-- ============================================
@@ -859,10 +838,9 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-secondary"
-                    onclick="prevTutorialStep(7)">Anterior</button>
-                <button class="btn btn-success" onclick="closeTutorial()"><i
-                        class="fas fa-check"></i> ¡Entendido!</button>
+                <button class="btn btn-secondary" onclick="prevTutorialStep(7)">Anterior</button>
+                <button class="btn btn-success" onclick="closeTutorial()"><i class="fas fa-check"></i>
+                    ¡Entendido!</button>
             </div>
         </div>
     </div>
@@ -937,8 +915,7 @@
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="prevRevisorStep(2)">Anterior</button>
-                <button class="btn btn-primary"
-                    onclick="nextRevisorStep(4)">Siguiente</button>
+                <button class="btn btn-primary" onclick="nextRevisorStep(4)">Siguiente</button>
             </div>
         </div>
     </div>
@@ -961,8 +938,7 @@
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="prevRevisorStep(3)">Anterior</button>
-                <button class="btn btn-primary"
-                    onclick="nextRevisorStep(5)">Siguiente</button>
+                <button class="btn btn-primary" onclick="nextRevisorStep(5)">Siguiente</button>
             </div>
         </div>
     </div>
@@ -984,10 +960,9 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-secondary"
-                    onclick="prevRevisorStep(4)">Anterior</button>
-                <button class="btn btn-success" onclick="closeTutorialRevisor()"><i
-                        class="fas fa-check"></i> ¡Entendido!</button>
+                <button class="btn btn-secondary" onclick="prevRevisorStep(4)">Anterior</button>
+                <button class="btn btn-success" onclick="closeTutorialRevisor()"><i class="fas fa-check"></i>
+                    ¡Entendido!</button>
             </div>
         </div>
     </div>
@@ -1083,8 +1058,8 @@
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="prevVisorStep(3)">Anterior</button>
-                <button class="btn btn-success" onclick="closeTutorialVisor()"><i
-                        class="fas fa-check"></i> ¡Entendido!</button>
+                <button class="btn btn-success" onclick="closeTutorialVisor()"><i class="fas fa-check"></i>
+                    ¡Entendido!</button>
             </div>
         </div>
     </div>
@@ -1095,6 +1070,20 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet-control-geocoder@2.4.0/dist/Control.Geocoder.js"></script>
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <!-- JSZip (dependencia de PptxGenJS) - Versión 3.6.0 para compatibilidad -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.6.0/jszip.min.js"></script>
+    <!-- PptxGenJS for PowerPoint Export - Usando versión 3.11.0 de jsDelivr (otro intento) -->
+    <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.11.0/dist/pptxgen.min.js"></script>
+     <!-- Verificación de carga de PptxGenJS -->
+     <script>
+         console.log('Verificando carga de PptxGenJS...');
+         setTimeout(function () {
+             if (typeof PptxGenJS === 'undefined') {
+                 console.error('PptxGenJS no se cargó correctamente');
+             } else {
+                 console.log('PptxGenJS cargado correctamente');
+             }
+         }, 2000);</script>
 
     <!-- Custom Delete Notification -->
     <div id="delete-notification" class="delete-notification-overlay">
